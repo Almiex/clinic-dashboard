@@ -154,7 +154,7 @@ if uploaded_file is not None:
         )])
         st.plotly_chart(p9, use_container_width=True)
 
-               # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
+        # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
         st.subheader("📅 Тепловые карты расписания (последние 14 дней)")
         df_local = df_clean.copy()
         df_local["Parsed_Date"] = pd.to_datetime(df_local["Дата"], dayfirst=True, errors="coerce")
@@ -179,7 +179,7 @@ if uploaded_file is not None:
             z10 = agg.pivot(index="Дата", columns="Специализация", values="Занято записями").reindex(ordered_dates)
             
             hover_text_10 = []
-            text_matrix_10 = [] # Матрица для текста прямо на ячейках
+            text_matrix_10 = []
             
             for date in h10.index:
                 row_hover = []
@@ -191,25 +191,26 @@ if uploaded_file is not None:
                     
                     if pd.isna(t_val) or t_val == 0:
                         row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
-                        row_text.append("Нет приема") # Пишем прямо на ячейке
+                        row_text.append("Нет приема")
                     else:
                         z_hours = z_val if not pd.isna(z_val) else 0.0
                         t_hours = t_val if not pd.isna(t_val) else 0.0
                         pct = val if not pd.isna(val) else 0.0
                         row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {pct:.1f}%<br>Табель: {t_hours:.1f} ч.<br>Записано: {z_hours:.1f} ч.")
-                        row_text.append("") # На обычных ячейках текст не пишем, чтобы не загромождать
+                        row_text.append("")
                 hover_text_10.append(row_hover)
                 text_matrix_10.append(row_text)
                 
             p10 = go.Figure(data=go.Heatmap(
                 z=h10.fillna(-1).values, x=h10.columns, y=h10.index,
                 text=text_matrix_10, hovertext=hover_text_10, hoverinfo="text", texttemplate="%{text}",
-                # Контрастная шкала: 0% — очень светлый, 100% — глубокий тёмный
+                # Сдвигаем насыщенность: до 80% график остается умеренно светлым
                 colorscale=[
-                    [0.0, '#E0E0E0'],    # -1 (Нет приема) -> Серый
+                    [0.0, '#E0E0E0'],    # -1 -> Серый (Нет приема)
                     [0.009, '#E0E0E0'],
-                    [0.01, '#EDF6F9'],   # 0% -> Почти белый (очень светлый)
-                    [0.5, '#4EA8DE'],    # 50% -> Голубой
+                    [0.01, '#F0F8FF'],   # 0% -> Ультра-светлый голубой
+                    [0.4, '#BDE0FE'],    # 40% -> Бледный голубой (раньше тут был средний цвет)
+                    [0.8, '#4EA8DE'],    # 80% -> Средний насыщенный голубой
                     [1.0, '#003049']     # 100% -> Глубокий тёмно-синий
                 ],
                 zmin=-1, zmax=100
@@ -249,13 +250,14 @@ if uploaded_file is not None:
             p11 = go.Figure(data=go.Heatmap(
                 z=h11.fillna(-1).values, x=h11.columns, y=h11.index,
                 text=text_matrix_11, hovertext=hover_text_11, hoverinfo="text", texttemplate="%{text}",
-                # Контрастная шкала для Явки: 0% — нежно-розовый, 100% — глубокий бордовый
+                # Сдвигаем розово-бордовую палитру на 80%
                 colorscale=[
-                    [0.0, '#E0E0E0'],    # -1 (Нет приема) -> Серый
+                    [0.0, '#E0E0E0'],    # -1 -> Серый (Нет приема)
                     [0.009, '#E0E0E0'],
-                    [0.01, '#FFE5EC'],   # 0% -> Светло-светло-розовый
-                    [0.5, '#C9184A'],    # 50% -> Насыщенный розовый
-                    [1.0, '#4F000B']     # 100% -> Тёмно-бордовый
+                    [0.01, '#FFF0F3'],   # 0% -> Бело-розовый
+                    [0.4, '#FFB3C1'],    # 40% -> Нежно-розовый
+                    [0.8, '#C9184A'],    # 80% -> Тот самый цвет, который раньше перегружал график
+                    [1.0, '#4F000B']     # 100% -> Финальный тёмно-бордовый акцент
                 ],
                 zmin=-1, zmax=100
             ))
