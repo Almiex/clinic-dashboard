@@ -89,7 +89,7 @@ if uploaded_file is not None:
         p1.update_layout(template="plotly_white", xaxis_title="Дата", yaxis_title="Часы", legend_title="Показатели")
         st.plotly_chart(p1, use_container_width=True)
 
-                # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Два раздельных столбика бок о бок + красивые русские подсказки
+               # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Корректный расчет высоты слоев и подсказок
         st.subheader("2. Анализ нагрузки и невостребованного времени по специализациям")
         df_p2 = sp_report.sort_values('Табель', ascending=False)
         
@@ -102,16 +102,21 @@ if uploaded_file is not None:
             offsetgroup=0,
             hovertemplate="<b>Специализация: %{x}</b><br>Отработано: %{y:.1f} ч.<extra></extra>"
         ))
+        
+        # Потери — это разница между записями и дошедшими. На графике ставится поверх Дошедших.
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Потери'], 
             name='Потери (Неявки)', marker_color='#B5838D',
-            offsetgroup=0, base=df_p2['Дошло пациентов'],
+            offsetgroup=0, 
+            base=df_p2['Дошло пациентов'], # Начинаем строить от уровня дошедших
             hovertemplate="<b>Специализация: %{x}</b><br>Потери (Неявки): %{y:.1f} ч.<extra></extra>"
         ))
+        
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Свободно'], 
             name='Незанятое время', marker_color='#E0FFFF',
-            offsetgroup=0, base=df_p2['Дошло пациентов'] + df_p2['Потери'],
+            offsetgroup=0, 
+            base=df_p2['Занято записями'], # Начинаем строить от общего уровня записей
             hovertemplate="<b>Специализация: %{x}</b><br>Незанятое время: %{y:.1f} ч.<extra></extra>"
         ))
         
@@ -133,6 +138,7 @@ if uploaded_file is not None:
             bargroupgap=0.05
         )
         st.plotly_chart(p2, use_container_width=True)
+
 
 
         # ВОССТАНОВЛЕННЫЙ График 3: ТОП по выделенным часам (План по табелю)
