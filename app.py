@@ -89,44 +89,48 @@ if uploaded_file is not None:
         p1.update_layout(template="plotly_white", xaxis_title="Дата", yaxis_title="Часы", legend_title="Показатели")
         st.plotly_chart(p1, use_container_width=True)
 
-                 # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Математически выверенный расчет высоты слоев
+        # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Фиксация точных значений через custom_data
         st.subheader("2. Анализ нагрузки и невостребованного времени по специализациям")
         df_p2 = sp_report.sort_values('Табель', ascending=False)
         
         p2 = go.Figure()
         
-        # Слой 1: Отработано (Дошло) — строится от нуля
+        # Слой 1: Отработано (Дошло)
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Дошло пациентов'], 
             name='Отработано (Дошло)', marker_color='#6C9D9D',
             offsetgroup=0,
-            hovertemplate="<b>Специализация: %{x}</b><br>Отработано: %{y:.1f} ч.<extra></extra>"
+            customdata=df_p2['Дошло пациентов'], # Передаем чистое значение
+            hovertemplate="<b>Специализация: %{x}</b><br>Отработано: %{customdata:.1f} ч.<extra></extra>"
         ))
         
-        # Слой 2: Потери (Неявки) — строится ОТ уровня Дошедших (Дошло + Потери = Занято записями)
+        # Слой 2: Потери (Неявки) — теперь данные в подсказке берутся строго из таблицы, а не из осей
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Потери'], 
             name='Потери (Неявки)', marker_color='#B5838D',
             offsetgroup=0, 
-            base=df_p2['Дошло пациентов'], # Стартовая точка
-            hovertemplate="<b>Специализация: %{x}</b><br>Потери (Неявки): %{y:.1f} ч.<extra></extra>"
+            base=df_p2['Дошло пациентов'],
+            customdata=df_p2['Потери'], # Фиксируем точные неявки, совпадающие с графиком 5.1!
+            hovertemplate="<b>Специализация: %{x}</b><br>Потери (Неявки): %{customdata:.1f} ч.<extra></extra>"
         ))
         
-        # Слой 3: Незанятое время (Свободно) — строится строго ОТ уровня Занято записями (Занято + Свободно = Табель)
+        # Слой 3: Незанятое время
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Свободно'], 
             name='Незанятое время', marker_color='#E0FFFF',
             offsetgroup=0, 
-            base=df_p2['Занято записями'], # Стартовая точка для пустых окон
-            hovertemplate="<b>Специализация: %{x}</b><br>Незанятое время: %{y:.1f} ч.<extra></extra>"
+            base=df_p2['Занято записями'],
+            customdata=df_p2['Свободно'], # Передаем чистое значение свободного времени
+            hovertemplate="<b>Специализация: %{x}</b><br>Незанятое время: %{customdata:.1f} ч.<extra></extra>"
         ))
         
-        # Столбик 2: План по табелю (Группа 2) — для контроля итоговой высоты
+        # Столбик 2: План по табелю
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Табель'], 
             name='Всего выделено часов', marker_color='#005F73',
             offsetgroup=1,
-            hovertemplate="<b>Специализация: %{x}</b><br>Всего выделено часов: %{y:.1f} ч.<extra></extra>"
+            customdata=df_p2['Табель'],
+            hovertemplate="<b>Специализация: %{x}</b><br>Всего выделено часов: %{customdata:.1f} ч.<extra></extra>"
         ))
         
         p2.update_layout(
@@ -139,6 +143,7 @@ if uploaded_file is not None:
             bargroupgap=0.05
         )
         st.plotly_chart(p2, use_container_width=True)
+
 
 
 
