@@ -28,9 +28,9 @@ if uploaded_file is not None:
         df_raw_meta = pd.read_excel(uploaded_file, sheet_name=1, header=None, nrows=3)
         
         # Извлекаем текст из третьей строки
-        start_date_str = str(df_raw_meta.iloc[2, 0]).replace("С:", "").strip()
-        end_date_str = str(df_raw_meta.iloc[2, 1]).replace("ПО:", "").strip()
-        clinic_name = str(df_raw_meta.iloc[2, 2]).replace("Клиника:", "").strip()
+        start_date_str = str(df_raw_meta.iloc[2, 0]).replace("С:", "").strip() if df_raw_meta.shape[0] > 2 else ""
+        end_date_str = str(df_raw_meta.iloc[2, 1]).replace("ПО:", "").strip() if df_raw_meta.shape[1] > 1 else ""
+        clinic_name = str(df_raw_meta.iloc[2, 2]).replace("Клиника:", "").strip() if df_raw_meta.shape[1] > 2 else "ООО КЛИНИКА"
         period_str = f"с {start_date_str} по {end_date_str}"
 
         # 2. Читаем основные данные со второго листа, пропуская первые 3 строки-шапки
@@ -75,14 +75,23 @@ if uploaded_file is not None:
         st.subheader("📋 Сводная таблица эффективности")
         st.dataframe(sp_report, use_container_width=True)
 
-        # Исправленный График 1: Динамика по дням (суммируем только числовые колонки)
+        # ВОССТАНОВЛЕННЫЙ График 1: Все 3 линии (Динамика использования времени)
         st.subheader("1. Линейный график: Динамика использования времени")
         df_clean["Parsed_Date_All"] = pd.to_datetime(df_clean["Дата"], dayfirst=True, errors="coerce")
         df_daily = df_clean.dropna(subset=["Parsed_Date_All"]).groupby('Дата', as_index=False)[['Табель', 'Занято записями', 'Дошло пациентов']].sum()
-        p1 = px.line(df_daily, x='Дата', y='Занято записями', title="Динамика записей по дням")
+        
+        # Сортируем по дате, чтобы график шел хронологически последовательно
+        df_daily["Parsed_Date_Sort"] = pd.to_datetime(df_daily["Дата"], dayfirst=True)
+        df_daily = df_daily.sort_values("Parsed_Date_Sort")
+        
+        p1 = go.Figure()
+        p1.add_trace(go.Scatter(x=df_daily['Дата'], y=df_daily['Табель'], mode='lines+markers', name='Выделено часов (Табель)', line=dict(color='#005F73')))
+        p1.add_trace(go.Scatter(x=df_daily['Дата'], y=df_daily['Занято записями'], mode='lines+markers', name='Занято записями', line=dict(color='#CA6702')))
+        p1.add_trace(go.Scatter(x=df_daily['Дата'], y=df_daily['Дошло пациентов'], mode='lines+markers', name='Дошло пациентов (Явка)', line=dict(color='#9B2226')))
+        p1.update_layout(template="plotly_white", xaxis_title="Дата", yaxis_title="Часы", legend_title="Показатели")
         st.plotly_chart(p1, use_container_width=True)
 
-        # График 4: ТОП по загрузке
+        # Исправленный График 4: ТОП по загрузке
         st.subheader("4. Горизонтальный Bar Chart (ТОП по Загрузке)")
         df_p4 = sp_report.sort_values('Загрузка %', ascending=True).copy()
         p4 = px.bar(
@@ -91,9 +100,9 @@ if uploaded_file is not None:
             color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']],
             custom_data=['Табель', 'Занято записями']
         )
-        p4.update_traces(hover_template="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata:.1f} ч.<br>Занято записью: %{customdata:.1f} ч.<extra></extra>")
+        p4.update_layout(xaxis_title="Загрузка расписания (%)")
+        p4.update_traces(hovertemplate="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata[0]:.1f} ч.<br>Занято записью: %{customdata[1]:.1f} ч.<extra></extra>")
         st.plotly_chart(p4, use_container_width=True)
-
 
         # График 5: Анализ неявок
         st.subheader("5. Анализ неявок пациентов")
