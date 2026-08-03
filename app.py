@@ -145,7 +145,7 @@ if uploaded_file is not None:
         kpi1.metric("📅 Выделено часов", f"{total_tabel:,.1f}")
         kpi2.metric("✅ Фактически занято", f"{total_active:,.1f}")
         kpi3.metric("📉 Свободно часов", f"{total_free:,.1f}")
-        kpi4.metric("⚠️ Потери (часов)", f"{total_lost:,.1f}")
+        kpi4.metric("⚠️ Потери от неявок (часов)", f"{total_lost:,.1f}")
         kpi5.metric("📊 Средняя загрузка", f"{avg_load:.1f}%")
         kpi6.metric("🚶 Средняя явка", f"{avg_show:.1f}%")
 
