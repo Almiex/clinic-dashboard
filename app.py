@@ -5,15 +5,76 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import timedelta
 
-# Настройка страницы дашборда
+# ==============================================================================
+# НАСТРОЙКА СТРАНИЦЫ
+# ==============================================================================
 st.set_page_config(page_title="Аналитический отчет клиники", layout="wide")
 
-# Кастомные стили
 st.markdown("""
     <style>
-    .clinic-header { background-color: #f8f9fa; border-left: 5px solid #005F73; padding: 15px; margin-bottom: 25px; }
-    .clinic-title { font-size: 24px; font-weight: bold; color: #2B2D42; }
-    .clinic-subtitle { font-size: 14px; color: #6C9D9D; }
+    .clinic-header { 
+        background-color: #f8f9fa; 
+        border-left: 5px solid #B5838D; 
+        padding: 20px; 
+        margin-bottom: 25px; 
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .clinic-title { font-size: 22px; font-weight: bold; color: #2B2D42; text-transform: uppercase; letter-spacing: 0.5px;}
+    .clinic-subtitle { font-size: 14px; color: #6C757D; margin-top: 6px; font-weight: 500;}
+    
+    /* Стили для кастомной таблицы */
+    .custom-dash-table {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        border-collapse: collapse;
+        width: 100%;
+        background-color: #FFFFFF;
+        color: #4A4A4A;
+        margin-top: 15px;
+        margin-bottom: 30px;
+        font-size: 13px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .custom-dash-table th {
+        background-color: #B5838D;
+        color: #FFFFFF !important;
+        font-weight: bold;
+        text-align: center !important;
+        padding: 12px 10px;
+        border: 1px solid #B5838D;
+        vertical-align: middle;
+        line-height: 1.2;
+    }
+    .custom-dash-table td {
+        padding: 10px;
+        border-bottom: 1px solid #E8D5D5;
+        text-align: center !important;
+        vertical-align: middle;
+    }
+    .custom-dash-table td:first-child {
+        text-align: center !important;
+        font-weight: bold;
+        background-color: #FAF6F2;
+        border-right: 1px solid #E8D5D5;
+    }
+    .custom-dash-table tr:nth-child(even) {
+        background-color: #F5F0EB;
+    }
+    
+    /* Аналитические блоки */
+    .analytics-block {
+        margin-bottom: 25px; 
+        background-color: #FFFFFF; 
+        padding: 20px; 
+        border-radius: 6px; 
+        border-left: 5px solid #6C9D9D; 
+        font-family: sans-serif; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .analytics-block h4 { color: #4A4A4A; margin-top:0; font-size: 16px; }
+    .analytics-block p { margin: 8px 0; font-size: 14px; color: #4A4A4A; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -24,22 +85,19 @@ uploaded_file = st.file_uploader("Выберите Excel файл (.xlsx)", type
 
 if uploaded_file is not None:
     try:
-        # 1. Читаем метаданные со второго листа (sheet_name=1), первые 3 строки
+        # =========================================================================
+        # 1. ЧТЕНИЕ МЕТАДАННЫХ И ОСНОВНЫХ ДАННЫХ
+        # =========================================================================
         df_raw_meta = pd.read_excel(uploaded_file, sheet_name=1, header=None, nrows=3)
         
-        # Извлекаем текст из третьей строки
         start_date_str = str(df_raw_meta.iloc[2, 0]).replace("С:", "").strip() if df_raw_meta.shape[0] > 2 else ""
         end_date_str = str(df_raw_meta.iloc[2, 1]).replace("ПО:", "").strip() if df_raw_meta.shape[1] > 1 else ""
         clinic_name = str(df_raw_meta.iloc[2, 2]).replace("Клиника:", "").strip() if df_raw_meta.shape[1] > 2 else "ООО КЛИНИКА"
         period_str = f"с {start_date_str} по {end_date_str}"
 
-        # 2. Читаем основные данные со второго листа, пропуская первые 3 строки-шапки
         df_clean = pd.read_excel(uploaded_file, sheet_name=1, skiprows=3)
-        
-        # Очищаем названия колонок от технического хвоста "~000"
         df_clean.columns = [str(col).split('~')[0].strip() for col in df_clean.columns]
         
-        # Проверяем наличие всех ключевых колонок
         required_cols = ['Специализация', 'Дата', 'Табель', 'Занято записями', 'Дошло пациентов']
         missing_cols = [c for c in required_cols if c not in df_clean.columns]
         
@@ -48,23 +106,29 @@ if uploaded_file is not None:
             st.warning(f"Доступные колонки на Листе 2 после очистки: {', '.join(df_clean.columns)}")
             st.stop()
             
-        # Приводим числовые колонки к правильному типу данных
         for col in ['Табель', 'Занято записями', 'Дошло пациентов']:
             df_clean[col] = pd.to_numeric(df_clean[col].astype(str).str.replace(",", "."), errors="coerce").fillna(0)
 
-        # 3. Агрегация данных по специализациям
+        # =========================================================================
+        # 2. АГРЕГАЦИЯ И РАСЧЕТ МЕТРИК
+        # =========================================================================
         sp_report = df_clean.groupby('Специализация', as_index=False).agg({
-            'Табель': 'sum', 'Занято записями': 'sum', 'Дошло пациентов': 'sum'
+            'Табель': 'sum', 
+            'Занято записями': 'sum', 
+            'Дошло пациентов': 'sum'
         })
         
-        # Расчет метрик эффективности
         sp_report['Свободно'] = sp_report['Табель'] - sp_report['Занято записями']
         sp_report['Потери'] = sp_report['Занято записями'] - sp_report['Дошло пациентов']
         sp_report['Загрузка %'] = np.where(sp_report['Табель'] > 0, (sp_report['Занято записями'] / sp_report['Табель']) * 100, 0)
         sp_report['Явка %'] = np.where(sp_report['Занято записями'] > 0, (sp_report['Дошло пациентов'] / sp_report['Занято записями']) * 100, 0)
+        sp_report['Время без записи в %'] = np.where(sp_report['Табель'] > 0, (sp_report['Свободно'] / sp_report['Табель']) * 100, 0)
+        sp_report['Неявки %'] = np.where(sp_report['Занято записями'] > 0, (sp_report['Потери'] / sp_report['Занято записями']) * 100, 0)
         sp_report = sp_report.round(1)
 
-        # Вывод красивой шапки клиники
+        # =========================================================================
+        # 3. ШАПКА И KPI-КАРТОЧКИ
+        # =========================================================================
         st.markdown(f"""
             <div class="clinic-header">
                 <div class="clinic-title">🏥 КЛИНИКА: {clinic_name}</div>
@@ -72,200 +136,355 @@ if uploaded_file is not None:
             </div>
         """, unsafe_allow_html=True)
 
-        st.subheader("📋 Сводная таблица эффективности")
-        st.dataframe(sp_report, use_container_width=True)
+        # KPI карточки
+        total_tabel = sp_report['Табель'].sum()
+        total_active = sp_report['Дошло пациентов'].sum()
+        total_free = sp_report['Свободно'].sum()
+        total_lost = sp_report['Потери'].sum()
+        avg_load = (sp_report['Занято записями'].sum() / total_tabel * 100) if total_tabel > 0 else 0
+        avg_show = (total_active / sp_report['Занято записями'].sum() * 100) if sp_report['Занято записями'].sum() > 0 else 0
 
-        # График 1: Динамика по дням
-        st.subheader("1. Линейный график: Динамика использования времени")
+        kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
+        kpi1.metric("📅 Выделено часов", f"{total_tabel:,.1f}")
+        kpi2.metric("✅ Фактически занято", f"{total_active:,.1f}")
+        kpi3.metric("📉 Свободно часов", f"{total_free:,.1f}")
+        kpi4.metric("⚠️ Потери (часов)", f"{total_lost:,.1f}")
+        kpi5.metric("📊 Средняя загрузка", f"{avg_load:.1f}%")
+        kpi6.metric("🚶 Средняя явка", f"{avg_show:.1f}%")
+
+        # =========================================================================
+        # 4. СВОДНАЯ ТАБЛИЦА (СТИЛИЗОВАННАЯ HTML)
+        # =========================================================================
+        st.subheader("📋 Сводная таблица эффективности по специализациям")
+        
+        table_df = pd.DataFrame()
+        table_df['Специализация'] = sp_report['Специализация']
+        table_df['Выделено<br>часов'] = sp_report['Табель'].map('{:,.1f}'.format)
+        table_df['Записано<br>пациентов<br>(часов)'] = sp_report['Занято записями'].map('{:,.1f}'.format)
+        table_df['Фактически<br>занято<br>пациентами<br>(часов)'] = sp_report['Дошло пациентов'].map('{:,.1f}'.format)
+        table_df['Время<br>без записи<br>(часов)'] = sp_report['Свободно'].map('{:,.1f}'.format)
+        table_df['Время<br>без записи<br>в %'] = sp_report['Время без записи в %'].map('{:,.1f}%'.format)
+        table_df['Неявки<br>пациентов<br>(часов)'] = sp_report['Потери'].map('{:,.1f}'.format)
+        table_df['Загрузка %'] = sp_report['Загрузка %'].map('{:,.1f}%'.format)
+        table_df['Явка %'] = sp_report['Явка %'].map('{:,.1f}%'.format)
+
+        table_html = table_df.to_html(index=False, classes='custom-dash-table', escape=False)
+        st.markdown(table_html, unsafe_allow_html=True)
+
+        # =========================================================================
+        # 5. АНАЛИТИЧЕСКИЕ БЛОКИ И РЕЙТИНГИ
+        # =========================================================================
+        t10_sp = sp_report.sort_values('Табель', ascending=False)['Специализация'].head(10).tolist()
+        anti_load = sp_report.sort_values('Загрузка %', ascending=True).head(3)[['Специализация', 'Загрузка %']].values.tolist()
+        anti_show = sp_report.sort_values('Явка %', ascending=True).head(3)[['Специализация', 'Явка %']].values.tolist()
+        m_loss = sp_report.sort_values('Потери', ascending=False).head(3)[['Специализация', 'Потери']].values.tolist()
+        m_free = sp_report.sort_values('Свободно', ascending=False).head(3)[['Специализация', 'Свободно']].values.tolist()
+
+        st.markdown(f"""
+        <div class='analytics-block'>
+            <h4>📊 АНАЛИТИЧЕСКИЕ БЛОКИ И РЕЙТИНГИ КЛИНИКИ</h4>
+            <p><b>🩺 ТОП-10 специализаций по Выделено часов:</b> {", ".join(t10_sp)}</p>
+            <p><b>📉 Anti-load (Низкая загрузка):</b> {", ".join([f"{name} ({val:.1f}%)" for name, val in anti_load])}</p>
+            <p><b>🚶‍♂️ Anti-show (Низкая явка пациентов):</b> {", ".join([f"{name} ({val:.1f}%)" for name, val in anti_show])}</p>
+            <p><b>⚠️ Максимальные Потери пациентов (часов):</b> {", ".join([f"{name} ({val:.1f}ч)" for name, val in m_loss])}</p>
+            <p><b>📅 Максимальное Свободное время (часов):</b> {", ".join([f"{name} ({val:.1f}ч)" for name, val in m_free])}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # =========================================================================
+        # 6. ГРАФИК 1: ЛИНЕЙНЫЙ ГРАФИК ПО ДНЯМ
+        # =========================================================================
+        st.subheader("1. Линейный график: Динамика использования рабочего времени врачей по дням")
+        
         df_clean["Parsed_Date_All"] = pd.to_datetime(df_clean["Дата"], dayfirst=True, errors="coerce")
-        df_daily = df_clean.dropna(subset=["Parsed_Date_All"]).groupby('Дата', as_index=False)[['Табель', 'Занято записями', 'Дошло пациентов']].sum()
-        df_daily["Parsed_Date_Sort"] = pd.to_datetime(df_daily["Дата"], dayfirst=True)
-        df_daily = df_daily.sort_values("Parsed_Date_Sort")
+        df_daily = df_clean.dropna(subset=["Parsed_Date_All"]).groupby('Parsed_Date_All', as_index=False)[['Табель', 'Занято записями', 'Дошло пациентов']].sum()
+        df_daily = df_daily.sort_values("Parsed_Date_All")
         
         p1 = go.Figure()
-        p1.add_trace(go.Scatter(x=df_daily['Дата'], y=df_daily['Табель'], mode='lines+markers', name='Выделено часов (Табель)', line=dict(color='#005F73')))
-        p1.add_trace(go.Scatter(x=df_daily['Дата'], y=df_daily['Занято записями'], mode='lines+markers', name='Занято записями', line=dict(color='#CA6702')))
-        p1.add_trace(go.Scatter(x=df_daily['Дата'], y=df_daily['Дошло пациентов'], mode='lines+markers', name='Дошло пациентов (Явка)', line=dict(color='#9B2226')))
-        p1.update_layout(template="plotly_white", xaxis_title="Дата", yaxis_title="Часы", legend_title="Показатели")
+        p1.add_trace(go.Scatter(
+            x=df_daily['Parsed_Date_All'], y=df_daily['Табель'], 
+            name='Выделено часов', line=dict(color='#005F73', width=3.5)
+        ))
+        p1.add_trace(go.Scatter(
+            x=df_daily['Parsed_Date_All'], y=df_daily['Занято записями'], 
+            name='Записано пациентов (часов)', line=dict(color='#D6A4BB', width=3)
+        ))
+        p1.add_trace(go.Scatter(
+            x=df_daily['Parsed_Date_All'], y=df_daily['Дошло пациентов'], 
+            name='Фактически занято (часов)', line=dict(color='#6C9D9D', width=3)
+        ))
+        p1.update_layout(
+            template="plotly_white", 
+            xaxis=dict(tickformat="%d.%m.%Y", tickangle=-45),
+            yaxis_title="Часы",
+            legend_title="Показатели",
+            height=500
+        )
         st.plotly_chart(p1, use_container_width=True)
 
-        # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Фиксация точных значений через custom_data
+        # =========================================================================
+        # 7. ГРАФИК 2: СГРУППИРОВАННО-СОСТАВНАЯ ДИАГРАММА
+        # =========================================================================
         st.subheader("2. Анализ нагрузки и невостребованного времени по специализациям")
-        df_p2 = sp_report.sort_values('Табель', ascending=False)
+        
+        df_p2 = sp_report.sort_values('Табель', ascending=False).copy()
+        df_p2['Неявки пациентов'] = df_p2['Потери']
+        df_p2['Свободные часы'] = df_p2['Табель'] - df_p2['Занято записями']
         
         p2 = go.Figure()
         
-        # Слой 1: Отработано (Дошло)
+        # Столбец 1: Факт (составной)
         p2.add_trace(go.Bar(
-            x=df_p2['Специализация'], y=df_p2['Дошло пациентов'], 
-            name='Отработано (Дошло)', marker_color='#6C9D9D',
-            offsetgroup=0,
-            customdata=df_p2['Дошло пациентов'], # Передаем чистое значение
-            hovertemplate="<b>Специализация: %{x}</b><br>Отработано: %{customdata:.1f} ч.<extra></extra>"
+            x=df_p2['Специализация'], y=df_p2['Дошло пациентов'],
+            name='Отработано (Дошли)', marker_color='#6C9D9D', offsetgroup=0,
+            hovertemplate="<b>Отработано (Дошли)</b><br>Специализация: %{x}<br>Время: %{y:,.1f} ч<extra></extra>"
         ))
-        
-        # Слой 2: Потери (Неявки) — теперь данные в подсказке берутся строго из таблицы, а не из осей
         p2.add_trace(go.Bar(
-            x=df_p2['Специализация'], y=df_p2['Потери'], 
-            name='Потери (Неявки)', marker_color='#B5838D',
-            offsetgroup=0, 
+            x=df_p2['Специализация'], y=df_p2['Неявки пациентов'],
+            name='Потери (Неявки)', marker_color='#6A323A', offsetgroup=0,
             base=df_p2['Дошло пациентов'],
-            customdata=df_p2['Потери'], # Фиксируем точные неявки, совпадающие с графиком 5.1!
-            hovertemplate="<b>Специализация: %{x}</b><br>Потери (Неявки): %{customdata:.1f} ч.<extra></extra>"
+            customdata=np.stack([df_p2['Неявки пациентов']], axis=-1),
+            hovertemplate="<b>Потери (Неявки)</b><br>Специализация: %{x}<br>Время: %{customdata[0]:,.1f} ч<extra></extra>"
+        ))
+        p2.add_trace(go.Bar(
+            x=df_p2['Специализация'], y=df_p2['Свободные часы'],
+            name='Незанятое время', marker_color='#e8d3dd', offsetgroup=0,
+            base=df_p2['Дошло пациентов'] + df_p2['Неявки пациентов'],
+            customdata=np.stack([df_p2['Свободные часы']], axis=-1),
+            hovertemplate="<b>Незанятое время</b><br>Специализация: %{x}<br>Время: %{customdata[0]:,.1f} ч<extra></extra>"
         ))
         
-        # Слой 3: Незанятое время
+        # Столбец 2: План
         p2.add_trace(go.Bar(
-            x=df_p2['Специализация'], y=df_p2['Свободно'], 
-            name='Незанятое время', marker_color='#E0FFFF',
-            offsetgroup=0, 
-            base=df_p2['Занято записями'],
-            customdata=df_p2['Свободно'], # Передаем чистое значение свободного времени
-            hovertemplate="<b>Специализация: %{x}</b><br>Незанятое время: %{customdata:.1f} ч.<extra></extra>"
-        ))
-        
-        # Столбик 2: План по табелю
-        p2.add_trace(go.Bar(
-            x=df_p2['Специализация'], y=df_p2['Табель'], 
-            name='Всего выделено часов', marker_color='#005F73',
-            offsetgroup=1,
-            customdata=df_p2['Табель'],
-            hovertemplate="<b>Специализация: %{x}</b><br>Всего выделено часов: %{customdata:.1f} ч.<extra></extra>"
+            x=df_p2['Специализация'], y=df_p2['Табель'],
+            name='Всего выделено часов', marker_color='#005F73', offsetgroup=1,
+            hovertemplate="<b>Всего выделено часов</b><br>Специализация: %{x}<br>Всего часов: %{y:,.1f} ч<extra></extra>"
         ))
         
         p2.update_layout(
-            template="plotly_white", 
-            xaxis_title="Специализация", 
-            yaxis_title="Часы", 
-            legend_title="Структура времени",
-            barmode='group',
-            bargap=0.15,
-            bargroupgap=0.05
+            barmode='group', template="plotly_white", 
+            xaxis={'categoryorder':'total descending'},
+            yaxis_title="Часы", height=600
         )
         st.plotly_chart(p2, use_container_width=True)
 
-
-
-
-        # ВОССТАНОВЛЕННЫЙ График 3: ТОП по выделенным часам (План по табелю)
-        st.subheader("3. ТОП специализаций по общему объему выделенного времени")
-        df_p3 = sp_report.sort_values('Табель', ascending=True)
+        # =========================================================================
+        # 8. ГРАФИК 3: ТОП ПО ВЫДЕЛЕННЫМ ЧАСАМ
+        # =========================================================================
+        st.subheader("3. ТОП специализаций по выделенному времени")
+        
+        df_p3 = sp_report.sort_values('Табель', ascending=True).copy()
         p3 = px.bar(
             df_p3, x='Табель', y='Специализация', orientation='h',
             title="Выделено рабочих часов по табелю", color='Табель',
             color_continuous_scale=[[0.0, '#e6fcfb'], [1.0, '#005F73']]
         )
-        p3.update_layout(xaxis_title="Всего часов (ч.)", yaxis_title="Специализация")
+        p3.update_layout(xaxis_title="Всего часов (ч.)", yaxis_title="Специализация", height=600)
+        p3.update_traces(hovertemplate="<b>%{y}</b><br>Выделено: %{x:,.1f} ч.<extra></extra>")
         st.plotly_chart(p3, use_container_width=True)
 
-        # График 4: ТОП по загрузке
-        st.subheader("4. Горизонтальный Bar Chart (ТОП по Загрузке)")
+        # =========================================================================
+        # 9. ГРАФИК 4.1: ТОП ПО ЗАГРУЗКЕ
+        # =========================================================================
+        st.subheader("4.1. ТОП специализаций по Загрузке %")
+        
         df_p4 = sp_report.sort_values('Загрузка %', ascending=True).copy()
         p4 = px.bar(
             df_p4, x='Загрузка %', y='Специализация', orientation='h',
-            title="ТОП специализаций по Загрузке %", color='Загрузка %',
+            title="Загрузка расписания", color='Загрузка %',
             color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']],
             custom_data=['Табель', 'Занято записями']
         )
-        p4.update_layout(xaxis_title="Загрузка расписания (%)")
-        p4.update_traces(hovertemplate="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata:.1f} ч.<br>Занято записью: %{customdata:.1f} ч.<extra></extra>")
+        p4.update_layout(xaxis_title="Загрузка расписания (%)", height=600)
+        p4.update_traces(
+            hovertemplate="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata[0]:,.1f} ч.<br>Занято записью: %{customdata[1]:,.1f} ч.<extra></extra>"
+        )
         st.plotly_chart(p4, use_container_width=True)
 
+        # =========================================================================
+        # 10. ГРАФИК 4.2: ТОП ПО НЕДОЗАГРУЗКЕ (НОВЫЙ / БЫЛ ПРОПУЩЕН)
+        # =========================================================================
+        st.subheader("4.2. ТОП специализаций по НЕДОзагрузке %")
+        
+        df_p42 = sp_report.copy()
+        df_p42['Незанято часов всего'] = df_p42['Свободно']
+        df_p42['Свободное время %'] = np.where(df_p42['Табель'] > 0, (df_p42['Незанято часов всего'] / df_p42['Табель']) * 100, 0)
+        df_p42 = df_p42.sort_values('Свободное время %', ascending=True)
+        
+        p42 = px.bar(
+            df_p42, x='Свободное время %', y='Специализация', orientation='h',
+            title="Процент незагруженного времени", color='Свободное время %',
+            color_continuous_scale=[[0.0, '#e6fcfb'], [1.0, '#005F73']],
+            custom_data=['Табель', 'Незанято часов всего']
+        )
+        p42.update_layout(xaxis_title="Процент незагруженного времени (%)", height=600)
+        p42.update_traces(
+            hovertemplate="<b>%{y}</b><br>Свободное время: %{x:.1f}%<br>Выделено часов всего: %{customdata[0]:,.1f} ч.<br>Незанято часов всего: %{customdata[1]:,.1f} ч.<extra></extra>"
+        )
+        st.plotly_chart(p42, use_container_width=True)
 
-        # График 5: Анализ неявок
+        # =========================================================================
+        # 11. ГРАФИК 5: АНАЛИЗ НЕЯВОК
+        # =========================================================================
         st.subheader("5. Анализ неявок пациентов")
         col1, col2 = st.columns(2)
+        
         with col1:
             df_p51 = sp_report.sort_values('Потери', ascending=True).copy()
-            p51 = px.bar(df_p51, x='Потери', y='Специализация', orientation='h', title="5.1. ТОП по Неявкам (часов)", color='Потери', color_continuous_scale=[[0.0, '#e6fcfb'], [1.0, '#005F73']])
+            p51 = px.bar(
+                df_p51, x='Потери', y='Специализация', orientation='h',
+                title="5.1. ТОП по Неявкам (часов)", color='Потери',
+                color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']]
+            )
+            p51.update_layout(xaxis_title="Неявки пациентов (часов)")
+            p51.update_traces(hovertemplate="<b>%{y}</b><br>Неявки: %{x:,.1f} ч.<extra></extra>")
             st.plotly_chart(p51, use_container_width=True)
+            
         with col2:
-            sp_report['Неявки %'] = (sp_report['Потери'] / sp_report['Занято записями'].clip(lower=1) * 100).round(1)
             df_p52 = sp_report.sort_values('Неявки %', ascending=True).copy()
-            p52 = px.bar(df_p52, x='Неявки %', y='Специализация', orientation='h', title="5.2. ТОП по Неявкам (%)", color='Неявки %', color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']])
+            p52 = px.bar(
+                df_p52, x='Неявки %', y='Специализация', orientation='h',
+                title="5.2. ТОП по Неявкам (%)", color='Неявки %',
+                color_continuous_scale=[[0.0, '#e6fcfb'], [1.0, '#005F73']]
+            )
+            p52.update_layout(xaxis_title="Неявки пациентов (%)")
+            p52.update_traces(hovertemplate="<b>%{y}</b><br>Процент неявок: %{x:.1f}%<extra></extra>")
             st.plotly_chart(p52, use_container_width=True)
 
-        # График 6: Плиточная диаграмма (Treemap)
-        st.subheader("6. Плиточная диаграмма: Объемы и явка")
+        # =========================================================================
+        # 12. ГРАФИК 6: TREEMAP
+        # =========================================================================
+        st.subheader("6. Плиточная диаграмма: Объем выделенного времени и процент явки пациентов")
+        
         p6 = px.treemap(
             sp_report, path=['Специализация'], values='Табель', color='Явка %',
-            color_continuous_scale=[[0.0, '#005F73'], [1.0, '#E0FFFF']],
-            title="Объем выделенного времени и процент явки пациентов",
+            color_continuous_scale=[[0.0, '#e6fcfb'], [1.0, '#005F73']],
             custom_data=['Загрузка %', 'Явка %']
         )
-        p6.update_traces(texttemplate="<b>%{label}</b><br>Выделено часов: %{value:.1f} ч.<br>Загрузка: %{customdata[0]:.1f}%<br>Явка: %{customdata[1]:.1f}%")
+        p6.update_traces(
+            marker=dict(line=dict(width=2, color='#FFFFFF')),
+            texttemplate="<b>%{label}</b><br>Выделено часов: %{value:,.1f} ч.<br>Загрузка: %{customdata[0]:.1f}%<br>Явка: %{customdata[1]:.1f}%",
+            textfont=dict(size=11, color='#2B2D42'),
+            hovertemplate="<b>%{label}</b><br>Выделено часов: %{value:,.1f} ч.<br>Загрузка: %{customdata[0]:.1f}%<br>Явка: %{customdata[1]:.1f}%<extra></extra>"
+        )
+        p6.update_layout(
+            coloraxis=dict(cmin=sp_report['Явка %'].min(), cmax=100),
+            margin=dict(t=60, b=20, l=20, r=20),
+            height=600
+        )
         st.plotly_chart(p6, use_container_width=True)
 
-        # Финальная пузырьковая матрица с крупными точками и подписями на графике
-        st.subheader("7. Матрица эффективности: Загрузка и неявки")
+        # =========================================================================
+        # 13. ГРАФИК 7: МАТРИЦА ЭФФЕКТИВНОСТИ
+        # =========================================================================
+        st.subheader("7. Матрица эффективности: Анализ загрузки и неявок по направлениям")
         
-        df_p7 = sp_report.copy()
-        
-        # Строим график с включенными текстовыми подписями text='Специализация'
         p7 = px.scatter(
-            df_p7, 
-            x='Табель', 
-            y='Загрузка %', 
-            size='Табель', 
-            color='Неявки %',
-            text='Специализация', # Выводим текст прямо на диаграмму!
-            hover_name='Специализация',
+            sp_report, x='Табель', y='Загрузка %', size='Табель', color='Неявки %',
+            hover_name='Специализация', text='Специализация',
             title="Анализ загрузки и неявок по направлениям",
             color_continuous_scale=[[0.0, '#00A896'], [0.5, '#F4A261'], [1.0, '#D62828']],
-            size_max=65 # <-- Увеличили размер еще в 2 раза! Теперь круги огромные и наглядные
+            size_max=65
         )
-        
-        # Настраиваем положение текста, чтобы он аккуратно встал СВЕРХУ пузырьков
         p7.update_traces(
             textposition='top center',
-            hovertemplate="<b>%{hovertext}</b><br>Выделено часов (Табель): %{x:.1f} ч.<br>Загрузка расписания: %{y:.1f}%<extra></extra>"
+            mode='markers+text',
+            marker=dict(sizeref=12, sizemode='diameter', opacity=0.6, line=dict(width=1, color='#2B2D42')),
+            hovertemplate="<b>%{hovertext}</b><br>Выделено часов: %{x:,.1f} ч.<br>Загрузка расписания: %{y:.1f}%<br>Неявки пациентов: %{marker.color:.1f}%<extra></extra>"
         )
-        
         p7.update_layout(
-            template="plotly_white", 
-            xaxis_title="Выделено часов по табелю (ч.)", 
+            template="plotly_white",
+            xaxis_title="Выделено часов (ч.)",
             yaxis_title="Загрузка расписания (%)",
-            coloraxis_colorbar=dict(title="Неявки %")
+            coloraxis_colorbar=dict(title="Неявки %"),
+            height=650
         )
         st.plotly_chart(p7, use_container_width=True)
 
-
-
-        # НАСТОЯЩАЯ Каскадная диаграмма (Waterfall Chart) с точным значением в подсказке
-        st.subheader("8. Каскадная диаграмма: Баланс рабочего времени")
+        # =========================================================================
+        # 14. ГРАФИК 8: КАСКАДНАЯ ДИАГРАММА (WATERFALL)
+        # =========================================================================
+        st.subheader("8. Каскадная диаграмма: Баланс рабочего времени и структура операционных потерь")
+        
         t_h = float(sp_report['Табель'].sum())
-        free_hours = float(sp_report['Свободно'].sum())
-        lost_hours = float(sp_report['Потери'].sum())
-        active_hours = float(sp_report['Дошло пациентов'].sum())
+        free_h = float(sp_report['Свободно'].sum())
+        lost_h = float(sp_report['Потери'].sum())
+        active_h = float(sp_report['Дошло пациентов'].sum())
         
-        p8 = go.Figure(go.Waterfall(
-            name="Баланс",
-            orientation="v",
-            measure=["absolute", "relative", "relative", "total"],
-            x=["1. План по табелю", "Время без записи", "Неявки пациентов", "Фактически занято"],
-            textposition="outside",
-            y=[t_h, -free_hours, -lost_hours, active_hours],
-            text=[f"{t_h:.1f} ч.", f"-{free_hours:.1f} ч.", f"-{lost_hours:.1f} ч.", f"{active_hours:.1f} ч."],
-            # Используем %{text} вместо внутренних системных расчетов баланса
-            hovertemplate="<b>%{x}</b><br>Значение этапа: %{text}<extra></extra>",
-            connector={"line": {"color": "rgb(63, 63, 63)", "dash": "dot"}},
-            decreasing={"marker": {"color": "#B5838D"}},
-            increasing={"marker": {"color": "#6C9D9D"}},
-            totals={"marker": {"color": "#005F73"}}
+        pct_free = (free_h / t_h * 100)
+        pct_lost = (lost_h / t_h * 100)
+        pct_active = (active_h / t_h * 100)
+        
+        x_labels = [
+            "1. Выделено часов<br>(План по табелю)",
+            "Время без записи<br>(Свободные окна)",
+            "Неявки пациентов<br>(Сорванные приемы)",
+            "Фактически занято<br>пациентами (Факт)"
+        ]
+        
+        base = [0, t_h - free_h, t_h - free_h - lost_h, 0]
+        y_values = [t_h, free_h, lost_h, active_h]
+        
+        text_labels = [
+            f"{t_h:,.1f} ч. (100%)",
+            f"-{free_h:,.1f} ч. (-{pct_free:.1f}%)",
+            f"-{lost_h:,.1f} ч. (-{pct_lost:.1f}%)",
+            f"{active_h:,.1f} ч. ({pct_active:.1f}%)"
+        ]
+        
+        custom_colors = ['#005F73', '#B5838D', '#B5838D', '#6C9D9D']
+        
+        p8 = go.Figure(go.Bar(
+            x=x_labels, y=y_values, base=base, text=text_labels,
+            textposition='outside',
+            marker_color=custom_colors,
+            textfont=dict(size=12, color='#2B2D42'),
+            hovertemplate="<b>%{x}</b><br>Баланс: %{text}<extra></extra>"
         ))
-        
         p8.update_layout(
-            title="Баланс рабочего времени и структура потерь клиники",
+            title="Баланс рабочего времени и структура операционных потерь",
+            yaxis_title="Количество часов",
             template="plotly_white",
-            showlegend=False
+            yaxis=dict(range=[0, t_h * 1.15]),
+            height=550
         )
         st.plotly_chart(p8, use_container_width=True)
 
+        # =========================================================================
+        # 15. ГРАФИК 9: КОЛЬЦЕВАЯ ДИАГРАММА (DONUT) — НОВЫЙ / БЫЛ ПРОПУЩЕН
+        # =========================================================================
+        st.subheader("9. Кольцевая диаграмма: Структура использования рабочего времени докторов")
+        
+        labels_list = ['Фактически занято', 'Время без записи', 'Неявки пациентов']
+        values_list = [active_h, free_h, lost_h]
+        full_text_labels = [
+            f"Фактически занято<br>пациентами ({pct_active:.1f}%)",
+            f"Время без записи<br>(Свободные окна) ({pct_free:.1f}%)",
+            f"Неявки пациентов<br>(Простои) ({pct_lost:.1f}%)"
+        ]
+        donut_colors = ['#6C9D9D', '#d1fff4', '#B5838D']
+        
+        p9 = go.Figure(data=[go.Pie(
+            labels=labels_list, values=values_list, hole=.4,
+            marker=dict(colors=donut_colors, line=dict(color='#FFFFFF', width=2)),
+            text=full_text_labels, textinfo='text', textposition='outside',
+            textfont=dict(size=11, color='#2B2D42')
+        )])
+        p9.update_layout(
+            template="plotly_white", height=500,
+            showlegend=True,
+            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05)
+        )
+        p9.update_traces(
+            hovertemplate="<b>%{label}</b><br>Объем: %{value:,.1f} ч.<br>Доля: %{percent}<extra></extra>"
+        )
+        st.plotly_chart(p9, use_container_width=True)
 
-
-
-        # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
+        # =========================================================================
+        # 16. ГРАФИКИ 10 И 11: ТЕПЛОВЫЕ КАРТЫ (14 ДНЕЙ)
+        # =========================================================================
         st.subheader("📅 Тепловые карты расписания (последние 14 дней)")
+        
         df_local = df_clean.copy()
         df_local["Parsed_Date"] = pd.to_datetime(df_local["Дата"], dayfirst=True, errors="coerce")
         df_local = df_local.dropna(subset=["Parsed_Date"])
@@ -277,7 +496,6 @@ if uploaded_file is not None:
             df_local["Дата"] = df_local["Parsed_Date"].dt.strftime("%d.%m.%Y")
             ordered_dates = [d.strftime("%d.%m.%Y") for d in pd.date_range(start=start_date, end=last_date, freq="D")]
             
-            # Базовая агрегация
             agg = df_local.groupby(["Дата", "Специализация"], as_index=False).agg({
                 "Табель": "sum", "Занято записями": "sum", "Дошло пациентов": "sum"
             })
@@ -290,42 +508,37 @@ if uploaded_file is not None:
             
             hover_text_10 = []
             text_matrix_10 = []
-            
             for date in h10.index:
-                row_hover = []
-                row_text = []
+                row_hover, row_text = [], []
                 for spec in h10.columns:
-                    val = h10.loc[date, spec]
-                    t_val = t10.loc[date, spec]
-                    z_val = z10.loc[date, spec]
-                    
+                    val, t_val, z_val = h10.loc[date, spec], t10.loc[date, spec], z10.loc[date, spec]
                     if pd.isna(t_val) or t_val == 0:
                         row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
                         row_text.append("Нет приема")
                     else:
-                        z_hours = z_val if not pd.isna(z_val) else 0.0
-                        t_hours = t_val if not pd.isna(t_val) else 0.0
-                        pct = val if not pd.isna(val) else 0.0
-                        row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {pct:.1f}%<br>Табель: {t_hours:.1f} ч.<br>Записано: {z_hours:.1f} ч.")
+                        row_hover.append(
+                            f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {val:.1f}%<br>"
+                            f"Табель: {t_val:.1f} ч.<br>Записано: {z_val:.1f} ч."
+                        )
                         row_text.append("")
                 hover_text_10.append(row_hover)
                 text_matrix_10.append(row_text)
-                
+            
             p10 = go.Figure(data=go.Heatmap(
                 z=h10.fillna(-1).values, x=h10.columns, y=h10.index,
                 text=text_matrix_10, hovertext=hover_text_10, hoverinfo="text", texttemplate="%{text}",
-                # Сдвигаем насыщенность: до 80% график остается умеренно светлым
                 colorscale=[
-                    [0.0, '#E0E0E0'],    # -1 -> Серый (Нет приема)
-                    [0.009, '#E0E0E0'],
-                    [0.01, '#F0F8FF'],   # 0% -> Ультра-светлый голубой
-                    [0.4, '#BDE0FE'],    # 40% -> Бледный голубой (раньше тут был средний цвет)
-                    [0.8, '#4EA8DE'],    # 80% -> Средний насыщенный голубой
-                    [1.0, '#003049']     # 100% -> Глубокий тёмно-синий
+                    [0.0, '#E0E0E0'], [0.009, '#E0E0E0'],
+                    [0.01, '#F0F8FF'], [0.4, '#BDE0FE'],
+                    [0.8, '#4EA8DE'], [1.0, '#003049']
                 ],
-                zmin=-1, zmax=100
+                zmin=-1, zmax=100, xgap=1, ygap=1
             ))
-            p10.update_layout(title="10. Заполненность расписания (Записано / Табель)", height=650, template="plotly_white")
+            p10.update_layout(
+                title="10. Заполненность расписания (Записано / Табель)", 
+                height=650, template="plotly_white",
+                xaxis=dict(tickangle=-45), yaxis=dict(type="category")
+            )
             st.plotly_chart(p10, use_container_width=True)
             
             # --- 11. ТЕПЛОВАЯ КАРТА ЯВКИ ---
@@ -336,43 +549,39 @@ if uploaded_file is not None:
             
             hover_text_11 = []
             text_matrix_11 = []
-            
             for date in h11.index:
-                row_hover = []
-                row_text = []
+                row_hover, row_text = [], []
                 for spec in h11.columns:
-                    val = h11.loc[date, spec]
-                    z_val = z11.loc[date, spec]
-                    d_val = d11.loc[date, spec]
-                    
+                    val, z_val, d_val = h11.loc[date, spec], z11.loc[date, spec], d11.loc[date, spec]
                     if pd.isna(z_val) or z_val == 0:
                         row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
                         row_text.append("Нет приема")
                     else:
-                        d_hours = d_val if not pd.isna(d_val) else 0.0
-                        z_hours = z_val if not pd.isna(z_val) else 0.0
-                        pct = val if not pd.isna(val) else 0.0
-                        row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: {pct:.1f}%<br>Записано: {z_hours:.1f} ч.<br>Дошло: {d_hours:.1f} ч.")
+                        row_hover.append(
+                            f"Дата: {date}<br>Специализация: {spec}<br>Явка: {val:.1f}%<br>"
+                            f"Записано: {z_val:.1f} ч.<br>Дошло: {d_val:.1f} ч."
+                        )
                         row_text.append("")
                 hover_text_11.append(row_hover)
                 text_matrix_11.append(row_text)
-                
+            
             p11 = go.Figure(data=go.Heatmap(
                 z=h11.fillna(-1).values, x=h11.columns, y=h11.index,
                 text=text_matrix_11, hovertext=hover_text_11, hoverinfo="text", texttemplate="%{text}",
-                # Сдвигаем розово-бордовую палитру на 80%
                 colorscale=[
-                    [0.0, '#E0E0E0'],    # -1 -> Серый (Нет приема)
-                    [0.009, '#E0E0E0'],
-                    [0.01, '#FFF0F3'],   # 0% -> Бело-розовый
-                    [0.4, '#FFB3C1'],    # 40% -> Нежно-розовый
-                    [0.8, '#C9184A'],    # 80% -> Тот самый цвет, который раньше перегружал график
-                    [1.0, '#4F000B']     # 100% -> Финальный тёмно-бордовый акцент
+                    [0.0, '#E0E0E0'], [0.009, '#E0E0E0'],
+                    [0.01, '#FFF0F3'], [0.4, '#FFB3C1'],
+                    [0.8, '#C9184A'], [1.0, '#4F000B']
                 ],
-                zmin=-1, zmax=100
+                zmin=-1, zmax=100, xgap=1, ygap=1
             ))
-            p11.update_layout(title="11. Процент явки пациентов (Дошло / Записано)", height=650, template="plotly_white")
+            p11.update_layout(
+                title="11. Процент явки пациентов (Дошло / Записано)", 
+                height=650, template="plotly_white",
+                xaxis=dict(tickangle=-45), yaxis=dict(type="category")
+            )
             st.plotly_chart(p11, use_container_width=True)
 
     except Exception as e:
-        st.error(f"Ошибка при обработке файла: {e}")
+        st.error(f"❌ Ошибка при обработке файла: {e}")
+        st.exception(e)
