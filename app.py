@@ -30,19 +30,39 @@ if uploaded_file is not None:
         df_clean = pd.read_excel(uploaded_file, sheet_name=0)
         df_meta = pd.read_excel(uploaded_file, sheet_name=1)
         
+        # Проверяем колонки на случай опечаток в Excel
+        available_columns = list(df_clean.columns)
+        
+        # Автоподбор колонки специализации (ищет похожие названия)
+        spec_col = 'Специализация'
+        if 'Специализация' not in available_columns:
+            for col in available_columns:
+                if 'спец' in str(col).lower():
+                    spec_col = col
+                    break
+        
+        # Если даже похожую колонку не нашли, выводим подсказку для пользователя
+        if spec_col not in available_columns:
+            st.error(f"❌ В таблице не найдена колонка 'Специализация'.")
+            st.warning(f"Доступные колонки в вашем файле: {', '.join(available_columns)}")
+            st.stop()
+            
         clinic_name = df_meta.iloc[0, 0] if not df_meta.empty else "ООО КЛИНИКА"
         period_str = df_meta.iloc[0, 1] if not df_meta.empty else "Период не указан"
         
-        sp_report = df_clean.groupby('Специализация', as_index=False).agg({
+        sp_report = df_clean.groupby(spec_col, as_index=False).agg({
             'Табель': 'sum',
             'Занято записями': 'sum',
             'Дошло пациентов': 'sum'
         })
         
+        # Переименуем обратно для совместимости с Частью 2
+        sp_report = sp_report.rename(columns={spec_col: 'Специализация'})
+        
         sp_report['Свободно'] = sp_report['Табель'] - sp_report['Занято записями']
         sp_report['Потери'] = sp_report['Занято записями'] - sp_report['Дошло пациентов']
         sp_report['Загрузка %'] = np.where(sp_report['Табель'] > 0, (sp_report['Занято записями'] / sp_report['Табель']) * 100, np.nan)
-        sp_report['Явка %'] = np.where(sp_report['Занято записями'] > 0, (sp_report['Дошло пациентов'] / sp_report['Занято записями']) * 100, np.nan)
+        sp_report['Yавка %'] = np.where(sp_report['Занято записями'] > 0, (sp_report['Дошло пациентов'] / sp_report['Занято записями']) * 100, np.nan)
         sp_report = sp_report.round(1)
 
         st.markdown(f"""
@@ -85,6 +105,7 @@ if uploaded_file is not None:
             df_p52 = sp_report.sort_values('Неявки %', ascending=True).copy()
             p52 = px.bar(df_p52, x='Неявки %', y='Специализация', orientation='h', title="5.2. ТОП по Неявкам (%)", color='Неявки %', color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']])
             st.plotly_chart(p52, use_container_width=True)
+
 
         st.subheader("6. Плиточная диаграмма: Объемы и явка")
         sp_report['Загрузка %'] = sp_report['Загрузка %'].fillna(0)
