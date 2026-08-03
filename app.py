@@ -216,22 +216,22 @@ if uploaded_file is not None:
         # =========================================================================
         # 5. АНАЛИТИЧЕСКИЕ БЛОКИ
         # =========================================================================
-        t10_sp = sp_report.sort_values('Табель', ascending=False)['Специализация'].head(10).tolist()
-        anti_load = sp_report.sort_values('Загрузка %', ascending=True).head(3)[['Специализация', 'Загрузка %']].values.tolist()
-        anti_show = sp_report.sort_values('Явка %', ascending=True).head(3)[['Специализация', 'Явка %']].values.tolist()
-        m_loss = sp_report.sort_values('Потери', ascending=False).head(3)[['Специализация', 'Потери']].values.tolist()
-        m_free = sp_report.sort_values('Свободно', ascending=False).head(3)[['Специализация', 'Свободно']].values.tolist()
+        #t10_sp = sp_report.sort_values('Табель', ascending=False)['Специализация'].head(10).tolist()
+        #anti_load = sp_report.sort_values('Загрузка %', ascending=True).head(3)[['Специализация', 'Загрузка %']].values.tolist()
+        #anti_show = sp_report.sort_values('Явка %', ascending=True).head(3)[['Специализация', 'Явка %']].values.tolist()
+        #m_loss = sp_report.sort_values('Потери', ascending=False).head(3)[['Специализация', 'Потери']].values.tolist()
+        #m_free = sp_report.sort_values('Свободно', ascending=False).head(3)[['Специализация', 'Свободно']].values.tolist()
 
-        st.markdown(f"""
-        <div class='analytics-block'>
-            <h4>📊 АНАЛИТИЧЕСКИЕ БЛОКИ И РЕЙТИНГИ КЛИНИКИ</h4>
-            <p><b>🩺 ТОП-10 специализаций по Выделено часов:</b> {", ".join(t10_sp)}</p>
-            <p><b>📉 Anti-load (Низкая загрузка):</b> {", ".join([f"{name} ({val:.1f}%)" for name, val in anti_load])}</p>
-            <p><b>🚶‍♂️ Anti-show (Низкая явка пациентов):</b> {", ".join([f"{name} ({val:.1f}%)" for name, val in anti_show])}</p>
-            <p><b>⚠️ Максимальные Потери пациентов (часов):</b> {", ".join([f"{name} ({val:.1f}ч)" for name, val in m_loss])}</p>
-            <p><b>📅 Максимальное Свободное время (часов):</b> {", ".join([f"{name} ({val:.1f}ч)" for name, val in m_free])}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        #st.markdown(f"""
+        #<div class='analytics-block'>
+        #    <h4>📊 АНАЛИТИЧЕСКИЕ БЛОКИ И РЕЙТИНГИ КЛИНИКИ</h4>
+        #    <p><b>🩺 ТОП-10 специализаций по Выделено часов:</b> {", ".join(t10_sp)}</p>
+        #    <p><b>📉 Anti-load (Низкая загрузка):</b> {", ".join([f"{name} ({val:.1f}%)" for name, val in anti_load])}</p>
+        #    <p><b>🚶‍♂️ Anti-show (Низкая явка пациентов):</b> {", ".join([f"{name} ({val:.1f}%)" for name, val in anti_show])}</p>
+        #    <p><b>⚠️ Максимальные Потери пациентов (часов):</b> {", ".join([f"{name} ({val:.1f}ч)" for name, val in m_loss])}</p>
+        #    <p><b>📅 Максимальное Свободное время (часов):</b> {", ".join([f"{name} ({val:.1f}ч)" for name, val in m_free])}</p>
+        #</div>
+        #""", unsafe_allow_html=True)
 
         # =========================================================================
         # 6. ГРАФИК 1: ЛИНЕЙНЫЙ
