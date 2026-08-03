@@ -76,7 +76,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏥 Аналитическая панель клиники")
+st.title("🏥 Аналитический отчет клиники: загрузка специализаций")
 st.write("Загрузите выгрузку из МИС в формате Excel для построения интерактивного отчета.")
 
 uploaded_file = st.file_uploader("Выберите Excel файл (.xlsx)", type=["xlsx"])
