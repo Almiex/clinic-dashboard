@@ -154,7 +154,7 @@ if uploaded_file is not None:
         )])
         st.plotly_chart(p9, use_container_width=True)
 
-        # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
+               # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
         st.subheader("📅 Тепловые карты расписания (последние 14 дней)")
         df_local = df_clean.copy()
         df_local["Parsed_Date"] = pd.to_datetime(df_local["Дата"], dayfirst=True, errors="coerce")
@@ -176,33 +176,41 @@ if uploaded_file is not None:
             agg["Загрузка %"] = np.where(agg["Табель"] > 0, (agg["Занято записями"] / agg["Табель"]) * 100, np.nan)
             h10 = agg.pivot(index="Дата", columns="Специализация", values="Загрузка %").reindex(ordered_dates)
             t10 = agg.pivot(index="Дата", columns="Специализация", values="Табель").reindex(ordered_dates)
+            z10 = agg.pivot(index="Дата", columns="Специализация", values="Занято записями").reindex(ordered_dates)
             
-            # Формируем матрицу кастомных подсказок (как в оригинале Colab)
             hover_text_10 = []
+            text_matrix_10 = [] # Матрица для текста прямо на ячейках
+            
             for date in h10.index:
+                row_hover = []
                 row_text = []
                 for spec in h10.columns:
                     val = h10.loc[date, spec]
                     t_val = t10.loc[date, spec]
+                    z_val = z10.loc[date, spec]
+                    
                     if pd.isna(t_val) or t_val == 0:
-                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
-                    elif pd.isna(val):
-                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: 0.0%")
+                        row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
+                        row_text.append("Нет приема") # Пишем прямо на ячейке
                     else:
-                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {val:.1f}%")
-                hover_text_10.append(row_text)
+                        z_hours = z_val if not pd.isna(z_val) else 0.0
+                        t_hours = t_val if not pd.isna(t_val) else 0.0
+                        pct = val if not pd.isna(val) else 0.0
+                        row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {pct:.1f}%<br>Табель: {t_hours:.1f} ч.<br>Записано: {z_hours:.1f} ч.")
+                        row_text.append("") # На обычных ячейках текст не пишем, чтобы не загромождать
+                hover_text_10.append(row_hover)
+                text_matrix_10.append(row_text)
                 
             p10 = go.Figure(data=go.Heatmap(
                 z=h10.fillna(-1).values, x=h10.columns, y=h10.index,
-                text=hover_text_10, hoverinfo="text",
-                # Сильная и контрастная градация цветов (от темного бирюзового к яркому)
+                text=text_matrix_10, hovertext=hover_text_10, hoverinfo="text", texttemplate="%{text}",
+                # Контрастная шкала: 0% — очень светлый, 100% — глубокий тёмный
                 colorscale=[
-                    [0.0, '#E0E0E0'],    # Серый цвет для "Нет приема"
+                    [0.0, '#E0E0E0'],    # -1 (Нет приема) -> Серый
                     [0.009, '#E0E0E0'],
-                    [0.01, '#003049'],   # Очень темный синий (низкая загрузка)
-                    [0.5, '#005F73'],    # Бирюзовый
-                    [0.8, '#0A9396'],    # Светло-бирюзовый
-                    [1.0, '#94D2BD']     # Мятный/Яркий (100% загрузка)
+                    [0.01, '#EDF6F9'],   # 0% -> Почти белый (очень светлый)
+                    [0.5, '#4EA8DE'],    # 50% -> Голубой
+                    [1.0, '#003049']     # 100% -> Глубокий тёмно-синий
                 ],
                 zmin=-1, zmax=100
             ))
@@ -213,32 +221,41 @@ if uploaded_file is not None:
             agg["Явка %"] = np.where(agg["Занято записями"] > 0, (agg["Дошло пациентов"] / agg["Занято записями"]) * 100, np.nan)
             h11 = agg.pivot(index="Дата", columns="Специализация", values="Явка %").reindex(ordered_dates)
             z11 = agg.pivot(index="Дата", columns="Специализация", values="Занято записями").reindex(ordered_dates)
+            d11 = agg.pivot(index="Дата", columns="Специализация", values="Дошло пациентов").reindex(ordered_dates)
             
             hover_text_11 = []
+            text_matrix_11 = []
+            
             for date in h11.index:
+                row_hover = []
                 row_text = []
                 for spec in h11.columns:
                     val = h11.loc[date, spec]
                     z_val = z11.loc[date, spec]
+                    d_val = d11.loc[date, spec]
+                    
                     if pd.isna(z_val) or z_val == 0:
-                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
-                    elif pd.isna(val):
-                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: 0.0%")
+                        row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
+                        row_text.append("Нет приема")
                     else:
-                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: {val:.1f}%")
-                hover_text_11.append(row_text)
+                        d_hours = d_val if not pd.isna(d_val) else 0.0
+                        z_hours = z_val if not pd.isna(z_val) else 0.0
+                        pct = val if not pd.isna(val) else 0.0
+                        row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: {pct:.1f}%<br>Записано: {z_hours:.1f} ч.<br>Дошло: {d_hours:.1f} ч.")
+                        row_text.append("")
+                hover_text_11.append(row_hover)
+                text_matrix_11.append(row_text)
                 
             p11 = go.Figure(data=go.Heatmap(
                 z=h11.fillna(-1).values, x=h11.columns, y=h11.index,
-                text=hover_text_11, hoverinfo="text",
-                # Сильная бордово-розовая градация
+                text=text_matrix_11, hovertext=hover_text_11, hoverinfo="text", texttemplate="%{text}",
+                # Контрастная шкала для Явки: 0% — нежно-розовый, 100% — глубокий бордовый
                 colorscale=[
-                    [0.0, '#E0E0E0'],    # Серый цвет для "Нет приема"
+                    [0.0, '#E0E0E0'],    # -1 (Нет приема) -> Серый
                     [0.009, '#E0E0E0'],
-                    [0.01, '#FFCDB2'],   # Светло-розовый (низкая явка)
-                    [0.4, '#B5838D'],    # Пыльная роза
-                    [0.7, '#6D597A'],    # Фиолетовый
-                    [1.0, '#350122']     # Глубокий бордовый (100% явка)
+                    [0.01, '#FFE5EC'],   # 0% -> Светло-светло-розовый
+                    [0.5, '#C9184A'],    # 50% -> Насыщенный розовый
+                    [1.0, '#4F000B']     # 100% -> Тёмно-бордовый
                 ],
                 zmin=-1, zmax=100
             ))
