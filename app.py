@@ -167,30 +167,83 @@ if uploaded_file is not None:
             df_local["Дата"] = df_local["Parsed_Date"].dt.strftime("%d.%m.%Y")
             ordered_dates = [d.strftime("%d.%m.%Y") for d in pd.date_range(start=start_date, end=last_date, freq="D")]
             
+            # Базовая агрегация
             agg = df_local.groupby(["Дата", "Специализация"], as_index=False).agg({
                 "Табель": "sum", "Занято записями": "sum", "Дошло пациентов": "sum"
             })
             
-            # Тепловая карта 10
+            # --- 10. ТЕПЛОВАЯ КАРТА ЗАПОЛНЕННОСТИ ---
             agg["Загрузка %"] = np.where(agg["Табель"] > 0, (agg["Занято записями"] / agg["Табель"]) * 100, np.nan)
             h10 = agg.pivot(index="Дата", columns="Специализация", values="Загрузка %").reindex(ordered_dates)
+            t10 = agg.pivot(index="Дата", columns="Специализация", values="Табель").reindex(ordered_dates)
+            
+            # Формируем матрицу кастомных подсказок (как в оригинале Colab)
+            hover_text_10 = []
+            for date in h10.index:
+                row_text = []
+                for spec in h10.columns:
+                    val = h10.loc[date, spec]
+                    t_val = t10.loc[date, spec]
+                    if pd.isna(t_val) or t_val == 0:
+                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
+                    elif pd.isna(val):
+                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: 0.0%")
+                    else:
+                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {val:.1f}%")
+                hover_text_10.append(row_text)
+                
             p10 = go.Figure(data=go.Heatmap(
                 z=h10.fillna(-1).values, x=h10.columns, y=h10.index,
-                colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#005F73'], [1.0, '#d1fff4']], zmin=-1, zmax=100
+                text=hover_text_10, hoverinfo="text",
+                # Сильная и контрастная градация цветов (от темного бирюзового к яркому)
+                colorscale=[
+                    [0.0, '#E0E0E0'],    # Серый цвет для "Нет приема"
+                    [0.009, '#E0E0E0'],
+                    [0.01, '#003049'],   # Очень темный синий (низкая загрузка)
+                    [0.5, '#005F73'],    # Бирюзовый
+                    [0.8, '#0A9396'],    # Светло-бирюзовый
+                    [1.0, '#94D2BD']     # Мятный/Яркий (100% загрузка)
+                ],
+                zmin=-1, zmax=100
             ))
-            p10.update_layout(title="10. Заполненность расписания (Записано / Табель)", height=650)
+            p10.update_layout(title="10. Заполненность расписания (Записано / Табель)", height=650, template="plotly_white")
             st.plotly_chart(p10, use_container_width=True)
             
-            # Тепловая карта 11
+            # --- 11. ТЕПЛОВАЯ КАРТА ЯВКИ ---
             agg["Явка %"] = np.where(agg["Занято записями"] > 0, (agg["Дошло пациентов"] / agg["Занято записями"]) * 100, np.nan)
             h11 = agg.pivot(index="Дата", columns="Специализация", values="Явка %").reindex(ordered_dates)
+            z11 = agg.pivot(index="Дата", columns="Специализация", values="Занято записями").reindex(ordered_dates)
+            
+            hover_text_11 = []
+            for date in h11.index:
+                row_text = []
+                for spec in h11.columns:
+                    val = h11.loc[date, spec]
+                    z_val = z11.loc[date, spec]
+                    if pd.isna(z_val) or z_val == 0:
+                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
+                    elif pd.isna(val):
+                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: 0.0%")
+                    else:
+                        row_text.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: {val:.1f}%")
+                hover_text_11.append(row_text)
+                
             p11 = go.Figure(data=go.Heatmap(
                 z=h11.fillna(-1).values, x=h11.columns, y=h11.index,
-                colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#F3E6E8'], [1.0, '#5A1A2A']], zmin=-1, zmax=100
+                text=hover_text_11, hoverinfo="text",
+                # Сильная бордово-розовая градация
+                colorscale=[
+                    [0.0, '#E0E0E0'],    # Серый цвет для "Нет приема"
+                    [0.009, '#E0E0E0'],
+                    [0.01, '#FFCDB2'],   # Светло-розовый (низкая явка)
+                    [0.4, '#B5838D'],    # Пыльная роза
+                    [0.7, '#6D597A'],    # Фиолетовый
+                    [1.0, '#350122']     # Глубокий бордовый (100% явка)
+                ],
+                zmin=-1, zmax=100
             ))
-            p11.update_layout(title="11. Процент явки пациентов (Дошло / Записано)", height=650)
+            p11.update_layout(title="11. Процент явки пациентов (Дошло / Записано)", height=650, template="plotly_white")
             st.plotly_chart(p11, use_container_width=True)
 
     except Exception as e:
         st.error(f"Ошибка при обработке файла: {e}")
-
