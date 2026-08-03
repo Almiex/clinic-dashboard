@@ -75,10 +75,10 @@ if uploaded_file is not None:
         st.subheader("📋 Сводная таблица эффективности")
         st.dataframe(sp_report, use_container_width=True)
 
-        # График 1: Динамика по дням
+        # Исправленный График 1: Динамика по дням (суммируем только числовые колонки)
         st.subheader("1. Линейный график: Динамика использования времени")
         df_clean["Parsed_Date_All"] = pd.to_datetime(df_clean["Дата"], dayfirst=True, errors="coerce")
-        df_daily = df_clean.dropna(subset=["Parsed_Date_All"]).groupby('Дата').sum().reset_index()
+        df_daily = df_clean.dropna(subset=["Parsed_Date_All"]).groupby('Дата', as_index=False)[['Табель', 'Занято записями', 'Дошло пациентов']].sum()
         p1 = px.line(df_daily, x='Дата', y='Занято записями', title="Динамика записей по дням")
         st.plotly_chart(p1, use_container_width=True)
 
@@ -91,8 +91,9 @@ if uploaded_file is not None:
             color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']],
             custom_data=['Табель', 'Занято записями']
         )
-        p4.update_traces(hover_template="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata[0]:.1f} ч.<br>Занято записью: %{customdata[1]:.1f} ч.<extra></extra>")
+        p4.update_traces(hover_template="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata:.1f} ч.<br>Занято записью: %{customdata:.1f} ч.<extra></extra>")
         st.plotly_chart(p4, use_container_width=True)
+
 
         # График 5: Анализ неявок
         st.subheader("5. Анализ неявок пациентов")
