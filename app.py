@@ -137,22 +137,35 @@ if uploaded_file is not None:
         )
         st.plotly_chart(p7, use_container_width=True)
 
-        # График 8: Каскадная диаграмма (Waterfall Balance)
+        # НАСТОЯЩАЯ Каскадная диаграмма (Waterfall Chart)
         st.subheader("8. Каскадная диаграмма: Баланс рабочего времени")
-        t_h, f_h, l_h, a_h = sp_report['Табель'].sum(), sp_report['Свободно'].sum(), sp_report['Потери'].sum(), sp_report['Дошло пациентов'].sum()
-        p8 = go.Figure(go.Bar(
-            x=["1. План по табелю", "Время без записи", "Неявки пациентов", "Фактически занято"], y=[t_h, f_h, l_h, a_h],
-            base=[0, t_h - f_h, t_h - f_h - l_h, 0], marker_color=['#005F73', '#B5838D', '#B5838D', '#6C9D9D']
+        t_h = float(sp_report['Табель'].sum())
+        free_hours = float(sp_report['Свободно'].sum())
+        lost_hours = float(sp_report['Потери'].sum())
+        active_hours = float(sp_report['Дошло пациентов'].sum())
+        
+        p8 = go.Figure(go.Waterfall(
+            name="Баланс",
+            orientation="v",
+            measure=["absolute", "relative", "relative", "total"],
+            x=["1. План по табелю", "Время без записи", "Неявки пациентов", "Фактически занято"],
+            textposition="outside",
+            # Отрицательные значения автоматически пойдут вниз с подписями
+            y=[t_h, -free_hours, -lost_hours, active_hours],
+            text=[f"{t_h:.1f} ч.", f"-{free_hours:.1f} ч.", f"-{lost_hours:.1f} ч.", f"{active_hours:.1f} ч."],
+            connector={"line": {"color": "rgb(63, 63, 63)", "dash": "dot"}},
+            decreasing={"marker": {"color": "#B5838D"}},
+            increasing={"marker": {"color": "#6C9D9D"}},
+            totals={"marker": {"color": "#005F73"}}
         ))
+        
+        p8.update_layout(
+            title="Баланс рабочего времени и структура потерь клиники",
+            template="plotly_white",
+            showlegend=False
+        )
         st.plotly_chart(p8, use_container_width=True)
 
-        # График 9: Кольцевая структура (Donut)
-        st.subheader("9. Структура использования времени")
-        p9 = go.Figure(data=[go.Pie(
-            labels=['Фактически занято', 'Время без записи', 'Неявки пациентов'], values=[a_h, f_h, l_h],
-            hole=.4, marker=dict(colors=['#6C9D9D', '#d1fff4', '#B5838D'])
-        )])
-        st.plotly_chart(p9, use_container_width=True)
 
         # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
         st.subheader("📅 Тепловые карты расписания (последние 14 дней)")
