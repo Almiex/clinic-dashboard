@@ -128,14 +128,37 @@ if uploaded_file is not None:
         p6.update_traces(texttemplate="<b>%{label}</b><br>Выделено часов: %{value:.1f} ч.<br>Загрузка: %{customdata[0]:.1f}%<br>Явка: %{customdata[1]:.1f}%")
         st.plotly_chart(p6, use_container_width=True)
 
-        # График 7: Матрица эффективности
+                # Исправленная Матрица эффективности (Пузырьковая диаграмма)
         st.subheader("7. Матрица эффективности: Загрузка и неявки")
+        
+        # Создаем копию для графика, чтобы не испортить исходные данные
+        df_p7 = sp_report.copy()
+        
         p7 = px.scatter(
-            sp_report, x='Табель', y='Загрузка %', size='Табель', color='Неявки %',
-            hover_name='Специализация', text='Специализация', title="Анализ загрузки и неявок по направлениям",
-            color_continuous_scale=[[0.0, '#00A896'], [0.5, '#F4A261'], [1.0, '#D62828']]
+            df_p7, 
+            x='Табель', 
+            y='Загрузка %', 
+            size='Табель', 
+            color='Неявки %',
+            hover_name='Специализация', 
+            title="Анализ загрузки и неявок по направлениям",
+            color_continuous_scale=[[0.0, '#00A896'], [0.5, '#F4A261'], [1.0, '#D62828']],
+            size_max=35 # <-- Принудительно увеличиваем максимальный размер пузырьков, чтобы они стали крупными!
+        )
+        
+        # Настраиваем чистый и красивый ховер при наведении вместо каши из текста на графике
+        p7.update_traces(
+            hovertemplate="<b>%{hovertext}</b><br>Выделено часов (Табель): %{x:.1f} ч.<br>Загрузка расписания: %{y:.1f}%<extra></extra>"
+        )
+        
+        p7.update_layout(
+            template="plotly_white", 
+            xaxis_title="Выделено часов по табелю (ч.)", 
+            yaxis_title="Загрузка расписания (%)",
+            coloraxis_colorbar=dict(title="Неявки %")
         )
         st.plotly_chart(p7, use_container_width=True)
+
 
         # НАСТОЯЩАЯ Каскадная диаграмма (Waterfall Chart) с точным значением в подсказке
         st.subheader("8. Каскадная диаграмма: Баланс рабочего времени")
