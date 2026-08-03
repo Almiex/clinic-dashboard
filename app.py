@@ -150,10 +150,8 @@ if uploaded_file is not None:
         kpi6.metric("🚶 Средняя явка", f"{avg_show:.1f}%")
 
         # =========================================================================
-        # 4. СВОДНАЯ ТАБЛИЦА
+        # 4. СВОДНАЯ ТАБЛИЦА (СВОРАЧИВАЕМАЯ)
         # =========================================================================
-        st.subheader("📋 Сводная таблица эффективности по специализациям")
-        
         table_df = pd.DataFrame()
         table_df['Специализация'] = sp_report['Специализация']
         table_df['Выделено<br>часов'] = sp_report['Табель'].map('{:,.1f}'.format)
@@ -166,7 +164,54 @@ if uploaded_file is not None:
         table_df['Явка %'] = sp_report['Явка %'].map('{:,.1f}%'.format)
 
         table_html = table_df.to_html(index=False, classes='custom-dash-table', escape=False)
-        st.markdown(table_html, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <style>
+        .details-table {{
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin-bottom: 25px;
+            background-color: #FFFFFF;
+            border-radius: 6px;
+            border-left: 5px solid #B5838D;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }}
+        .details-table summary {{
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #4A4A4A;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }}
+        .details-table summary::-webkit-details-marker {{ display: none; }}
+        .details-table summary::before {{
+            content: '▶';
+            font-size: 12px;
+            color: #B5838D;
+            transition: transform 0.2s;
+            display: inline-block;
+            width: 16px;
+        }}
+        .details-table[open] summary::before {{
+            content: '▼';
+        }}
+        .details-table .table-wrapper {{
+        padding: 0 20px 20px 20px;
+        }}
+</style>
+
+<details class="details-table" open>
+    <summary>📋 Сводная таблица эффективности по специализациям</summary>
+    <div class="table-wrapper">
+        {table_html}
+    </div>
+</details>
+""", unsafe_allow_html=True)
 
         # =========================================================================
         # 5. АНАЛИТИЧЕСКИЕ БЛОКИ
