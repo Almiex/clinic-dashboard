@@ -89,15 +89,45 @@ if uploaded_file is not None:
         p1.update_layout(template="plotly_white", xaxis_title="Дата", yaxis_title="Часы", legend_title="Показатели")
         st.plotly_chart(p1, use_container_width=True)
 
-        # ВОССТАНОВЛЕННЫЙ График 2: Сгруппированная нагрузка по специализациям
-        st.subheader("2. Диаграмма распределения нагрузки врачей по направлениям")
+        # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Два раздельных столбика бок о бок
+        st.subheader("2. Анализ нагрузки и невостребованного времени по специализациям")
         df_p2 = sp_report.sort_values('Табель', ascending=False)
+        
         p2 = go.Figure()
-        p2.add_trace(go.Bar(x=df_p2['Специализация'], y=df_p2['Дошло пациентов'], name='Фактический прием (Дошло)', marker_color='#6C9D9D'))
-        p2.add_trace(go.Bar(x=df_p2['Специализация'], y=df_p2['Потери'], name='Сорванные приемы (Неявки)', marker_color='#B5838D'))
-        p2.add_trace(go.Bar(x=df_p2['Специализация'], y=df_p2['Свободно'], name='Пустые окна (Свободно)', marker_color='#E0FFFF'))
-        p2.add_trace(go.Scatter(x=df_p2['Специализация'], y=df_p2['Табель'], mode='lines+markers', name='Лимит по табелю', line=dict(color='#005F73', width=3)))
-        p2.update_layout(barmode='stack', template="plotly_white", xaxis_title="Специализация", yaxis_title="Часы", legend_title="Структура времени")
+        
+        # Столбик 1 (Составной): Фактическая структура распределения времени (Группа 1)
+        p2.add_trace(go.Bar(
+            x=df_p2['Специализация'], y=df_p2['Дошло пациентов'], 
+            name='Отработано (Дошло)', marker_color='#6C9D9D',
+            offsetgroup=0
+        ))
+        p2.add_trace(go.Bar(
+            x=df_p2['Специализация'], y=df_p2['Потери'], 
+            name='Потери (Неявки)', marker_color='#B5838D',
+            offsetgroup=0, base=df_p2['Дошло пациентов'] # Накапливаем слой сверху
+        ))
+        p2.add_trace(go.Bar(
+            x=df_p2['Специализация'], y=df_p2['Свободно'], 
+            name='Незанятое время', marker_color='#E0FFFF',
+            offsetgroup=0, base=df_p2['Дошло пациентов'] + df_p2['Потери'] # Накапливаем третий слой
+        ))
+        
+        # Столбик 2: План по табелю (Группа 2) — стоит ровно бок о бок с первым
+        p2.add_trace(go.Bar(
+            x=df_p2['Специализация'], y=df_p2['Табель'], 
+            name='Всего выделено часов', marker_color='#005F73',
+            offsetgroup=1
+        ))
+        
+        p2.update_layout(
+            template="plotly_white", 
+            xaxis_title="Специализация", 
+            yaxis_title="Часы", 
+            legend_title="Структура времени",
+            barmode='group', # Включаем режим независимых групп
+            bargap=0.15,     # Настраиваем расстояние между специализациями
+            bargroupgap=0.05 # Настраиваем минимальный зазор между парными столбиками
+        )
         st.plotly_chart(p2, use_container_width=True)
 
         # ВОССТАНОВЛЕННЫЙ График 3: ТОП по выделенным часам (План по табелю)
