@@ -27,16 +27,16 @@ if uploaded_file is not None:
         # 1. Читаем метаданные со второго листа (sheet_name=1), первые 3 строки
         df_raw_meta = pd.read_excel(uploaded_file, sheet_name=1, header=None, nrows=3)
         
-        # Извлекаем текст из третьей строки (индекс 2 в Python) по столбцам
+        # Извлекаем текст из третьей строки
         start_date_str = str(df_raw_meta.iloc[2, 0]).replace("С:", "").strip()
         end_date_str = str(df_raw_meta.iloc[2, 1]).replace("ПО:", "").strip()
         clinic_name = str(df_raw_meta.iloc[2, 2]).replace("Клиника:", "").strip()
         period_str = f"с {start_date_str} по {end_date_str}"
 
-        # 2. Читаем основные данные со второго листа (sheet_name=1), пропуская первые 3 строки-шапки
+        # 2. Читаем основные данные со второго листа, пропуская первые 3 строки-шапки
         df_clean = pd.read_excel(uploaded_file, sheet_name=1, skiprows=3)
         
-        # Очищаем названия колонок от технического хвоста "~000" и пробелов
+        # Очищаем названия колонок от технического хвоста "~000"
         df_clean.columns = [str(col).split('~')[0].strip() for col in df_clean.columns]
         
         # Проверяем наличие всех ключевых колонок
@@ -48,13 +48,12 @@ if uploaded_file is not None:
             st.warning(f"Доступные колонки на Листе 2 после очистки: {', '.join(df_clean.columns)}")
             st.stop()
             
-        # Приводим числовые колонки к правильному типу данных (заменяем запятые на точки)
+        # Приводим числовые колонки к правильному типу данных
         for col in ['Табель', 'Занято записями', 'Дошло пациентов']:
             df_clean[col] = pd.to_numeric(df_clean[col].astype(str).str.replace(",", "."), errors="coerce").fillna(0)
 
         # 3. Агрегация данных по специализациям
         sp_report = df_clean.groupby('Специализация', as_index=False).agg({
-            'Talbel': 'sum' if 'Talbel' in df_clean.columns else 'Табель', # на случай латиницы
             'Табель': 'sum', 'Занято записями': 'sum', 'Дошло пациентов': 'sum'
         })
         
@@ -92,7 +91,7 @@ if uploaded_file is not None:
             color_continuous_scale=[[0.0, '#fce3ef'], [1.0, '#6A323A']],
             custom_data=['Табель', 'Занято записями']
         )
-        p4.update_traces(hover_template="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata:.1f} ч.<br>Занято записью: %{customdata:.1f} ч.<extra></extra>")
+        p4.update_traces(hover_template="<b>%{y}</b><br>Загрузка: %{x:.1f}%<br>Выделено часов: %{customdata[0]:.1f} ч.<br>Занято записью: %{customdata[1]:.1f} ч.<extra></extra>")
         st.plotly_chart(p4, use_container_width=True)
 
         # График 5: Анализ неявок
@@ -116,7 +115,7 @@ if uploaded_file is not None:
             title="Объем выделенного времени и процент явки пациентов",
             custom_data=['Загрузка %', 'Явка %']
         )
-        p6.update_traces(texttemplate="<b>%{label}</b><br>Выделено часов: %{value:.1f} ч.<br>Загрузка: %{customdata:.1f}%<br>Явка: %{customdata:.1f}%")
+        p6.update_traces(texttemplate="<b>%{label}</b><br>Выделено часов: %{value:.1f} ч.<br>Загрузка: %{customdata[0]:.1f}%<br>Явка: %{customdata[1]:.1f}%")
         st.plotly_chart(p6, use_container_width=True)
 
         # График 7: Матрица эффективности
@@ -174,3 +173,14 @@ if uploaded_file is not None:
             
             # Тепловая карта 11
             agg["Явка %"] = np.where(agg["Занято записями"] > 0, (agg["Дошло пациентов"] / agg["Занято записями"]) * 100, np.nan)
+            h11 = agg.pivot(index="Дата", columns="Специализация", values="Явка %").reindex(ordered_dates)
+            p11 = go.Figure(data=go.Heatmap(
+                z=h11.fillna(-1).values, x=h11.columns, y=h11.index,
+                colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#F3E6E8'], [1.0, '#5A1A2A']], zmin=-1, zmax=100
+            ))
+            p11.update_layout(title="11. Процент явки пациентов (Дошло / Записано)", height=650)
+            st.plotly_chart(p11, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Ошибка при обработке файла: {e}")
+
