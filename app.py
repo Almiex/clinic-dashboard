@@ -137,7 +137,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(p7, use_container_width=True)
 
-        # НАСТОЯЩАЯ Каскадная диаграмма (Waterfall Chart)
+        # НАСТОЯЩАЯ Каскадная диаграмма (Waterfall Chart) с чистым русским ховером
         st.subheader("8. Каскадная диаграмма: Баланс рабочего времени")
         t_h = float(sp_report['Табель'].sum())
         free_hours = float(sp_report['Свободно'].sum())
@@ -150,9 +150,10 @@ if uploaded_file is not None:
             measure=["absolute", "relative", "relative", "total"],
             x=["1. План по табелю", "Время без записи", "Неявки пациентов", "Фактически занято"],
             textposition="outside",
-            # Отрицательные значения автоматически пойдут вниз с подписями
             y=[t_h, -free_hours, -lost_hours, active_hours],
             text=[f"{t_h:.1f} ч.", f"-{free_hours:.1f} ч.", f"-{lost_hours:.1f} ч.", f"{active_hours:.1f} ч."],
+            # Убираем английский мусор и делаем понятную русскую подсказку
+            hovertemplate="<b>%{x}</b><br>Изменение: %{y:.1f} ч.<br>Текущий баланс: %{currentvalue:.1f} ч.<extra></extra>",
             connector={"line": {"color": "rgb(63, 63, 63)", "dash": "dot"}},
             decreasing={"marker": {"color": "#B5838D"}},
             increasing={"marker": {"color": "#6C9D9D"}},
@@ -165,6 +166,7 @@ if uploaded_file is not None:
             showlegend=False
         )
         st.plotly_chart(p8, use_container_width=True)
+
 
 
         # --- ТЕПЛОВЫЕ КАРТЫ за последние 14 дней (Графики 10 и 11) ---
