@@ -89,7 +89,7 @@ if uploaded_file is not None:
         p1.update_layout(template="plotly_white", xaxis_title="Дата", yaxis_title="Часы", legend_title="Показатели")
         st.plotly_chart(p1, use_container_width=True)
 
-        # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Два раздельных столбика бок о бок
+                # ВОССТАНОВЛЕННЫЙ ОРИГИНАЛЬНЫЙ График 2: Два раздельных столбика бок о бок + красивые русские подсказки
         st.subheader("2. Анализ нагрузки и невостребованного времени по специализациям")
         df_p2 = sp_report.sort_values('Табель', ascending=False)
         
@@ -99,24 +99,28 @@ if uploaded_file is not None:
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Дошло пациентов'], 
             name='Отработано (Дошло)', marker_color='#6C9D9D',
-            offsetgroup=0
+            offsetgroup=0,
+            hovertemplate="<b>Специализация: %{x}</b><br>Отработано: %{y:.1f} ч.<extra></extra>"
         ))
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Потери'], 
             name='Потери (Неявки)', marker_color='#B5838D',
-            offsetgroup=0, base=df_p2['Дошло пациентов'] # Накапливаем слой сверху
+            offsetgroup=0, base=df_p2['Дошло пациентов'],
+            hovertemplate="<b>Специализация: %{x}</b><br>Потери (Неявки): %{y:.1f} ч.<extra></extra>"
         ))
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Свободно'], 
             name='Незанятое время', marker_color='#E0FFFF',
-            offsetgroup=0, base=df_p2['Дошло пациентов'] + df_p2['Потери'] # Накапливаем третий слой
+            offsetgroup=0, base=df_p2['Дошло пациентов'] + df_p2['Потери'],
+            hovertemplate="<b>Специализация: %{x}</b><br>Незанятое время: %{y:.1f} ч.<extra></extra>"
         ))
         
-        # Столбик 2: План по табелю (Группа 2) — стоит ровно бок о бок с первым
+        # Столбик 2: План по табелю (Группа 2)
         p2.add_trace(go.Bar(
             x=df_p2['Специализация'], y=df_p2['Табель'], 
             name='Всего выделено часов', marker_color='#005F73',
-            offsetgroup=1
+            offsetgroup=1,
+            hovertemplate="<b>Специализация: %{x}</b><br>Всего выделено часов: %{y:.1f} ч.<extra></extra>"
         ))
         
         p2.update_layout(
@@ -124,11 +128,12 @@ if uploaded_file is not None:
             xaxis_title="Специализация", 
             yaxis_title="Часы", 
             legend_title="Структура времени",
-            barmode='group', # Включаем режим независимых групп
-            bargap=0.15,     # Настраиваем расстояние между специализациями
-            bargroupgap=0.05 # Настраиваем минимальный зазор между парными столбиками
+            barmode='group',
+            bargap=0.15,
+            bargroupgap=0.05
         )
         st.plotly_chart(p2, use_container_width=True)
+
 
         # ВОССТАНОВЛЕННЫЙ График 3: ТОП по выделенным часам (План по табелю)
         st.subheader("3. ТОП специализаций по общему объему выделенного времени")
