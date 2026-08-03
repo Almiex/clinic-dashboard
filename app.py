@@ -196,12 +196,32 @@ if uploaded_file is not None:
         df_clean["Parsed_Date_All"] = pd.to_datetime(df_clean["Дата"], dayfirst=True, errors="coerce")
         df_daily = df_clean.dropna(subset=["Parsed_Date_All"]).groupby('Parsed_Date_All', as_index=False)[['Табель', 'Занято записями', 'Дошло пациентов']].sum()
         df_daily = df_daily.sort_values("Parsed_Date_All")
-        
         p1 = go.Figure()
-        p1.add_trace(go.Scatter(x=df_daily['Parsed_Date_All'], y=df_daily['Табель'], name='Выделено часов', line=dict(color='#005F73', width=3.5)))
-        p1.add_trace(go.Scatter(x=df_daily['Parsed_Date_All'], y=df_daily['Занято записями'], name='Записано пациентов (часов)', line=dict(color='#D6A4BB', width=3)))
-        p1.add_trace(go.Scatter(x=df_daily['Parsed_Date_All'], y=df_daily['Дошло пациентов'], name='Фактически занято (часов)', line=dict(color='#6C9D9D', width=3)))
-        p1.update_layout(template="plotly_white", xaxis=dict(tickformat="%d.%m.%Y", tickangle=-45), yaxis_title="Часы", height=500)
+        p1.add_trace(go.Scatter(
+            x=df_daily['Parsed_Date_All'], y=df_daily['Табель'], 
+            name='Выделено часов', line=dict(color='#005F73', width=3.5)
+        ))
+        p1.add_trace(go.Scatter(
+            x=df_daily['Parsed_Date_All'], y=df_daily['Занято записями'], 
+            name='Записано пациентов (часов)', line=dict(color='#D6A4BB', width=3)
+        ))
+        p1.add_trace(go.Scatter(
+            x=df_daily['Parsed_Date_All'], y=df_daily['Дошло пациентов'], 
+            name='Фактически занято (часов)', line=dict(color='#6C9D9D', width=3)
+        ))
+        p1.update_layout(
+            template="plotly_white", 
+            xaxis=dict(
+                tickmode='array',
+                tickvals=df_daily['Parsed_Date_All'],   # ← засечка на КАЖДУЮ дату
+                tickformat="%d.%m.%Y", 
+                tickangle=-45,
+                automargin=True
+            ),
+            yaxis_title="Часы",
+            legend_title="Показатели",
+            height=500
+        )
         st.plotly_chart(p1, use_container_width=True)
 
         # =========================================================================
