@@ -471,10 +471,110 @@ if uploaded_file is not None:
         p9.update_traces(hovertemplate="<b>%{label}</b><br>Объем: %{value:,.1f} ч.<br>Доля: %{percent}<extra></extra>")
         st.plotly_chart(p9, use_container_width=True)
 
+        # # =========================================================================
+        # # 15. ГРАФИКИ 10 И 11: ТЕПЛОВЫЕ КАРТЫ (14 ДНЕЙ)
+        # # =========================================================================
+        # st.subheader("📅 Тепловые карты расписания (последние 14 дней)")
+        
+        # df_local = df_clean.copy()
+        # df_local["Parsed_Date"] = pd.to_datetime(df_local["Дата"], dayfirst=True, errors="coerce")
+        # df_local = df_local.dropna(subset=["Parsed_Date"])
+        
+        # if not df_local.empty:
+        #     last_date = df_local["Parsed_Date"].max()
+        #     start_date = last_date - timedelta(days=13)
+        #     df_local = df_local[(df_local["Parsed_Date"] >= start_date) & (df_local["Parsed_Date"] <= last_date)].copy()
+        #     df_local["Дата"] = df_local["Parsed_Date"].dt.strftime("%d.%m.%Y")
+        #     ordered_dates = [d.strftime("%d.%m.%Y") for d in pd.date_range(start=start_date, end=last_date, freq="D")]
+            
+        #     agg = df_local.groupby(["Дата", "Специализация"], as_index=False).agg({
+        #         "Табель": "sum", "Занято записями": "sum", "Дошло пациентов": "sum"
+        #     })
+            
+        #     # --- 10. ЗАПОЛНЕННОСТЬ ---
+        #     agg["Загрузка %"] = np.where(agg["Табель"] > 0, (agg["Занято записями"] / agg["Табель"]) * 100, np.nan)
+        #     h10 = agg.pivot(index="Дата", columns="Специализация", values="Загрузка %").reindex(ordered_dates)
+        #     t10 = agg.pivot(index="Дата", columns="Специализация", values="Табель").reindex(ordered_dates)
+        #     z10 = agg.pivot(index="Дата", columns="Специализация", values="Занято записями").reindex(ordered_dates)
+            
+        #     hover_text_10, text_matrix_10 = [], []
+        #     for date in h10.index:
+        #         row_hover, row_text = [], []
+        #         for spec in h10.columns:
+        #             val, t_val, z_val = h10.loc[date, spec], t10.loc[date, spec], z10.loc[date, spec]
+        #             if pd.isna(t_val) or t_val == 0:
+        #                 row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
+        #                 row_text.append("Нет приема")
+        #             else:
+        #                 row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Загрузка: {val:.1f}%<br>Табель: {t_val:.1f} ч.<br>Записано: {z_val:.1f} ч.")
+        #                 row_text.append("")
+        #         hover_text_10.append(row_hover)
+        #         text_matrix_10.append(row_text)
+            
+        #     p10 = go.Figure(data=go.Heatmap(
+        #         z=h10.fillna(-1).values, x=h10.columns, y=h10.index,
+        #         text=text_matrix_10, hovertext=hover_text_10, hoverinfo="text", texttemplate="%{text}",
+        #         colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#F0F8FF'], [0.4, '#BDE0FE'], [0.8, '#4EA8DE'], [1.0, '#003049']],
+        #         zmin=-1, zmax=100, xgap=1, ygap=1
+        #     ))
+        #     p10.update_layout(title="10. Заполненность расписания (Записано / Табель)", height=650, template="plotly_white",
+        #                       xaxis=dict(tickangle=-45), yaxis=dict(type="category"))
+        #     st.plotly_chart(p10, use_container_width=True)
+            
+        #     # --- 11. ЯВКА ---
+        #     agg["Явка %"] = np.where(agg["Занято записями"] > 0, (agg["Дошло пациентов"] / agg["Занято записями"]) * 100, np.nan)
+        #     h11 = agg.pivot(index="Дата", columns="Специализация", values="Явка %").reindex(ordered_dates)
+        #     z11 = agg.pivot(index="Дата", columns="Специализация", values="Занято записями").reindex(ordered_dates)
+        #     d11 = agg.pivot(index="Дата", columns="Специализация", values="Дошло пациентов").reindex(ordered_dates)
+            
+        #     hover_text_11, text_matrix_11 = [], []
+        #     for date in h11.index:
+        #         row_hover, row_text = [], []
+        #         for spec in h11.columns:
+        #             val, z_val, d_val = h11.loc[date, spec], z11.loc[date, spec], d11.loc[date, spec]
+        #             if pd.isna(z_val) or z_val == 0:
+        #                 row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br><b>Нет приема</b>")
+        #                 row_text.append("Нет приема")
+        #             else:
+        #                 row_hover.append(f"Дата: {date}<br>Специализация: {spec}<br>Явка: {val:.1f}%<br>Записано: {z_val:.1f} ч.<br>Дошло: {d_val:.1f} ч.")
+        #                 row_text.append("")
+        #         hover_text_11.append(row_hover)
+        #         text_matrix_11.append(row_text)
+            
+        #     p11 = go.Figure(data=go.Heatmap(
+        #         z=h11.fillna(-1).values, x=h11.columns, y=h11.index,
+        #         text=text_matrix_11, hovertext=hover_text_11, hoverinfo="text", texttemplate="%{text}",
+        #         colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#FFF0F3'], [0.4, '#FFB3C1'], [0.8, '#C9184A'], [1.0, '#4F000B']],
+        #         zmin=-1, zmax=100, xgap=1, ygap=1
+        #     ))
+        #     p11.update_layout(title="11. Процент явки пациентов (Дошло / Записано)", height=650, template="plotly_white",
+        #                       xaxis=dict(tickangle=-45), yaxis=dict(type="category"))
+        #     st.plotly_chart(p11, use_container_width=True)
+
+           # =========================================================================
+        # 15. ГРАФИКИ 10 И 11: ТЕПЛОВЫЕ КАРТЫ (14 / 60 ДНЕЙ)
         # =========================================================================
-        # 15. ГРАФИКИ 10 И 11: ТЕПЛОВЫЕ КАРТЫ (14 ДНЕЙ)
-        # =========================================================================
-        st.subheader("📅 Тепловые карты расписания (последние 14 дней)")
+        
+        # --- Переключатель периода ---
+        if "show_60_days" not in st.session_state:
+            st.session_state.show_60_days = False
+        
+        days_count = 60 if st.session_state.show_60_days else 14
+        days_label = "60 дней" if st.session_state.show_60_days else "14 дней"
+        heatmap_height = 1200 if st.session_state.show_60_days else 650
+        
+        st.subheader(f"📅 Тепловые карты расписания (последние {days_label})")
+        
+        col_btn, _ = st.columns([1, 4])
+        with col_btn:
+            if st.session_state.show_60_days:
+                if st.button("↩️ Свернуть до 14 дней", key="btn_14_days", type="secondary"):
+                    st.session_state.show_60_days = False
+                    st.rerun()
+            else:
+                if st.button("📅 Показать за 60 дней", key="btn_60_days", type="primary"):
+                    st.session_state.show_60_days = True
+                    st.rerun()
         
         df_local = df_clean.copy()
         df_local["Parsed_Date"] = pd.to_datetime(df_local["Дата"], dayfirst=True, errors="coerce")
@@ -482,7 +582,7 @@ if uploaded_file is not None:
         
         if not df_local.empty:
             last_date = df_local["Parsed_Date"].max()
-            start_date = last_date - timedelta(days=13)
+            start_date = last_date - timedelta(days=days_count - 1)
             df_local = df_local[(df_local["Parsed_Date"] >= start_date) & (df_local["Parsed_Date"] <= last_date)].copy()
             df_local["Дата"] = df_local["Parsed_Date"].dt.strftime("%d.%m.%Y")
             ordered_dates = [d.strftime("%d.%m.%Y") for d in pd.date_range(start=start_date, end=last_date, freq="D")]
@@ -517,7 +617,7 @@ if uploaded_file is not None:
                 colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#F0F8FF'], [0.4, '#BDE0FE'], [0.8, '#4EA8DE'], [1.0, '#003049']],
                 zmin=-1, zmax=100, xgap=1, ygap=1
             ))
-            p10.update_layout(title="10. Заполненность расписания (Записано / Табель)", height=650, template="plotly_white",
+            p10.update_layout(title=f"10. Заполненность расписания ({days_label})", height=heatmap_height, template="plotly_white",
                               xaxis=dict(tickangle=-45), yaxis=dict(type="category"))
             st.plotly_chart(p10, use_container_width=True)
             
@@ -547,9 +647,9 @@ if uploaded_file is not None:
                 colorscale=[[0.0, '#E0E0E0'], [0.009, '#E0E0E0'], [0.01, '#FFF0F3'], [0.4, '#FFB3C1'], [0.8, '#C9184A'], [1.0, '#4F000B']],
                 zmin=-1, zmax=100, xgap=1, ygap=1
             ))
-            p11.update_layout(title="11. Процент явки пациентов (Дошло / Записано)", height=650, template="plotly_white",
+            p11.update_layout(title=f"11. Процент явки пациентов ({days_label})", height=heatmap_height, template="plotly_white",
                               xaxis=dict(tickangle=-45), yaxis=dict(type="category"))
-            st.plotly_chart(p11, use_container_width=True)
+            st.plotly_chart(p11, use_container_width=True) 
 
     except Exception as e:
         st.error(f"❌ Ошибка при обработке файла: {e}")
